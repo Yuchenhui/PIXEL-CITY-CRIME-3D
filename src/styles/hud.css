@@ -1,0 +1,132 @@
+/* ========== HUD Overlay ========== */
+#hud {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+#hud * { pointer-events: none; }
+
+/* Health & Armor bars */
+.hp-bar { position: absolute; left: 16px; bottom: 60px; width: 200px; }
+.bar-bg {
+  width: 100%; height: 14px;
+  background: rgba(0,0,0,0.6); border-radius: 3px;
+  overflow: hidden; margin-bottom: 4px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.bar-fill { height: 100%; border-radius: 2px; transition: width 0.15s; }
+.bar-hp .bar-fill { background: linear-gradient(90deg, #cc3333, #44cc44); }
+.bar-armor .bar-fill { background: linear-gradient(90deg, #2266aa, #44aaff); }
+.bar-label {
+  position: absolute; left: 6px; top: 0;
+  font: bold 9px monospace; color: #fff;
+  text-shadow: 0 1px 2px #000; line-height: 14px;
+}
+
+/* Weapon info */
+#weaponInfo { position: absolute; right: 16px; bottom: 16px; text-align: right; }
+#weaponName { font: bold 16px monospace; color: #fff; text-shadow: 0 1px 4px #000; }
+#ammoCount { font: bold 28px monospace; color: #ffcc44; text-shadow: 0 1px 4px #000; }
+
+/* Weapon slots */
+#weaponSlots {
+  position: absolute; bottom: 16px; left: 50%;
+  transform: translateX(-50%); display: flex; gap: 3px;
+}
+.wslot {
+  width: 36px; height: 28px;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font: bold 10px monospace; color: #888;
+}
+.wslot.active {
+  background: rgba(255,200,50,0.2);
+  border-color: rgba(255,200,50,0.5);
+  color: #ffcc44;
+}
+.wslot.locked {
+  opacity: 0.25;
+  color: #555;
+}
+
+/* Crosshair */
+#crosshair {
+  position: absolute; left: 50%; top: 50%;
+  transform: translate(-50%, -50%); pointer-events: none;
+}
+#crosshair div { position: absolute; background: rgba(255,255,255,0.7); }
+.ch-h { width: 12px; height: 2px; top: 50%; transform: translateY(-50%); }
+.ch-v { height: 12px; width: 2px; left: 50%; transform: translateX(-50%); }
+.ch-l { left: -10px; }
+.ch-r { right: -10px; }
+.ch-t { top: -10px; }
+.ch-b { bottom: -10px; }
+.ch-dot {
+  width: 2px; height: 2px; left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%; background: rgba(255,100,100,0.6);
+}
+
+/* Minimap */
+#minimap {
+  position: absolute; right: 16px; top: 16px;
+  border-radius: 6px; overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.15);
+}
+
+/* Score */
+#scoreArea {
+  position: absolute; left: 16px; top: 16px;
+  font: bold 12px monospace; color: #fff;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* Wanted level */
+#wantedArea {
+  position: absolute; left: 16px; top: 70px;
+  font: bold 16px monospace; color: #ffcc00;
+  text-shadow: 0 1px 3px #000;
+}
+
+/* Combo */
+#comboArea {
+  position: absolute; left: 50%; top: 80px;
+  transform: translateX(-50%);
+  font: bold 20px monospace; color: #ff4444;
+  text-shadow: 0 2px 6px #000;
+  opacity: 0; transition: opacity 0.2s;
+}
+
+/* Speed */
+#speedArea {
+  position: absolute; right: 16px; bottom: 60px;
+  font: bold 14px monospace; color: #4af;
+  text-shadow: 0 1px 3px #000; display: none;
+}
+
+/* Interact hint */
+#interactHint {
+  position: absolute; left: 50%; bottom: 120px;
+  transform: translateX(-50%);
+  font: bold 13px monospace; color: #fff;
+  text-shadow: 0 1px 4px #000;
+  background: rgba(0,0,0,0.4);
+  padding: 6px 14px; border-radius: 6px; display: none;
+}
+
+/* Combat Log (bottom-right event feed) */
+#combatLog {
+  position: absolute; right: 16px; bottom: 100px;
+  width: 280px; display: flex; flex-direction: column-reverse;
+  gap: 4px; pointer-events: none;
+}
+.log-msg {
+  font: bold 12px monospace;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.5);
+  opacity: 0;
+  transform: translateX(30px);
+  transition: opacity 0.2s, transform 0.2s;
+  line-height: 1.4;
+  text-align: right;
+}

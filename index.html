@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+  <title>Pixel City Crime 3D</title>
+</head>
+<body>
+  <!-- HUD Overlay -->
+  <div id="hud" style="display:none">
+    <div class="hp-bar">
+      <div class="bar-bg bar-hp"><div class="bar-fill" id="hpFill" style="width:100%"></div><div class="bar-label">HP</div></div>
+      <div class="bar-bg bar-armor" id="armorBar" style="display:none"><div class="bar-fill" id="armorFill" style="width:0%"></div><div class="bar-label">ARMOR</div></div>
+    </div>
+    <div id="weaponInfo"><div id="weaponName">Pistol</div><div id="ammoCount">∞</div></div>
+    <div id="weaponSlots"></div>
+    <div id="crosshair">
+      <div class="ch-h ch-l"></div><div class="ch-h ch-r"></div>
+      <div class="ch-v ch-t"></div><div class="ch-v ch-b"></div>
+      <div class="ch-dot"></div>
+    </div>
+    <canvas id="minimap" width="140" height="140"></canvas>
+    <div id="scoreArea">SCORE: 0<br>KILLS: 0</div>
+    <div id="wantedArea"></div>
+    <div id="comboArea"></div>
+    <div id="speedArea">0 km/h</div>
+    <div id="interactHint">Press E to enter vehicle</div>
+    <div id="combatLog"></div>
+  </div>
+
+  <!-- Main Menu -->
+  <div id="menuOverlay">
+    <h1>PIXEL CITY</h1><h2>CRIME 3D</h2>
+    <div class="menu-btn">FREE ROAM</div>
+    <div class="menu-btn">SURVIVAL MODE</div>
+    <div class="menu-btn">CONTROLS</div>
+    <div id="controlsInfo">WASD - Move | Mouse - Look | Click - Shoot | 1-8 Weapons<br>E - Enter Vehicle | R - Reload | Shift - Sprint | Space - Jump<br>B - Weapon Shop | ESC - Pause</div>
+  </div>
+
+  <!-- Game Over -->
+  <div id="gameOverOverlay">
+    <h1>WASTED</h1>
+    <div id="goStats"></div>
+    <div class="menu-btn" style="margin-top:20px">CONTINUE</div>
+  </div>
+
+  <!-- Pause -->
+  <div id="pauseOverlay">
+    <h1>PAUSED</h1>
+    <div class="menu-btn">RESUME</div>
+    <div class="menu-btn">RESTART</div>
+    <div class="menu-btn">QUIT</div>
+  </div>
+
+  <!-- Loading Screen -->
+  <div id="loadScreen">
+    <div>PIXEL CITY CRIME 3D</div>
+    <div id="loadBar"><div id="loadFill"></div></div>
+  </div>
+
+  <!-- Click to play prompt -->
+  <div id="clickPrompt">Click to play</div>
+
+  <!-- Weapon Shop -->
+  <div id="weaponShop">
+    <h2>WEAPON SHOP</h2>
+    <div id="shopMoney">$0</div>
+    <div id="shopList"></div>
+    <div class="shop-hint">Press B to close</div>
+  </div>
+
+  <!-- Entry point -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

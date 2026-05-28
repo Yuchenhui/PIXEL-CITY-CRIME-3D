@@ -2,7 +2,25 @@
   "name": "pixel-city-crime-3d",
   "version": "1.0.0",
   "description": "Pixel City Crime 3D - First-person open-world game built with Three.js, Cannon-es, and TypeScript",
+  "license": "MIT",
+  "author": "Yuchenhui",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Yuchenhui/PIXEL-CITY-CRIME-3D.git"
+  },
+  "keywords": [
+    "threejs",
+    "game",
+    "first-person",
+    "open-world",
+    "procedural-generation",
+    "typescript",
+    "vite"
+  ],
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

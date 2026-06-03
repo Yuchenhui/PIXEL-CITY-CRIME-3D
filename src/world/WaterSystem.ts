@@ -10,7 +10,7 @@ export class WaterSystem {
   /** Generate water border planes */
   generate(group: THREE.Group): void {
     const halfMap = CFG.MAP_BLOCKS * (CFG.BLOCK_SIZE + CFG.ROAD_W) / 2;
-    const waterSize = 20;
+    const waterSize = CFG.WATER.BORDER_WIDTH;
     const waterMat = new THREE.MeshLambertMaterial({
       color: 0x1a4a8a,
       transparent: true,
@@ -28,8 +28,8 @@ export class WaterSystem {
       const isX = wx !== 0;
       const w = new THREE.Mesh(
         new THREE.PlaneGeometry(
-          isX ? waterSize : WORLD_SIZE + 40,
-          isX ? WORLD_SIZE + 40 : waterSize,
+          isX ? waterSize : WORLD_SIZE + CFG.WATER.BORDER_EXTEND,
+          isX ? WORLD_SIZE + CFG.WATER.BORDER_EXTEND : waterSize,
         ),
         waterMat,
       );

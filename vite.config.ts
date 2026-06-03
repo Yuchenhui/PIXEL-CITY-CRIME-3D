@@ -12,6 +12,7 @@ export default defineConfig({
       '@game': resolve(__dirname, 'src/types'),
       '@utils': resolve(__dirname, 'src/utils'),
       '@styles': resolve(__dirname, 'src/styles'),
+      '@story': resolve(__dirname, 'src/story'),
     },
   },
   server: {

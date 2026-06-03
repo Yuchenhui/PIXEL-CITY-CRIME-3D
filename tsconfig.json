@@ -22,7 +22,8 @@
       "@ui/*": ["src/ui/*"],
       "@game/*": ["src/types/*"],
       "@utils/*": ["src/utils/*"],
-      "@styles/*": ["src/styles/*"]
+      "@styles/*": ["src/styles/*"],
+      "@story/*": ["src/story/*"]
     }
   },
   "include": ["src/**/*.ts"],

@@ -1,6 +1,6 @@
 import * as CANNON from 'cannon-es';
 import type { BuildingData } from '@game/index';
-import { GRID_RES, WORLD_SIZE } from '@config/constants';
+import { CFG, GRID_RES, WORLD_SIZE } from '@config/constants';
 
 /**
  * Spatial hash cell for O(1) collision lookup.
@@ -28,7 +28,7 @@ export class PhysicsManager {
 
   constructor() {
     this.world = new CANNON.World({
-      gravity: new CANNON.Vec3(0, -25, 0),
+      gravity: new CANNON.Vec3(0, -CFG.GRAVITY, 0),
     });
     this.world.broadphase = new CANNON.SAPBroadphase(this.world);
     this.world.allowSleep = true;
@@ -37,8 +37,8 @@ export class PhysicsManager {
     this.playerBody = new CANNON.Body({
       mass: 0,
       type: CANNON.Body.KINEMATIC,
-      shape: new CANNON.Sphere(0.4),
-      position: new CANNON.Vec3(0, 1.7, 5),
+      shape: new CANNON.Sphere(CFG.PLAYER_R),
+      position: new CANNON.Vec3(0, CFG.PLAYER_H, 5),
       collisionFilterGroup: 1,
       collisionFilterMask: 1,
     });
@@ -100,7 +100,7 @@ export class PhysicsManager {
 
   /** Step the physics world */
   step(dt: number): void {
-    this.world.step(1 / 60, dt, 3);
+    this.world.step(CFG.PHYSICS.STEP_RATE, dt, CFG.PHYSICS.MAX_SUB_STEPS);
   }
 
   /** Update player body position from external coordinates */
@@ -147,11 +147,11 @@ export class PhysicsManager {
     const dx = toX - fromX;
     const dz = toZ - fromZ;
     const distSq = dx * dx + dz * dz;
-    if (distSq < 4) return true; // Very close, always visible
+    if (distSq < CFG.PHYSICS.LOS_MIN_DIST_SQ) return true; // Very close, always visible
 
     const dist = Math.sqrt(distSq);
     // Step size matches grid resolution for reliable detection
-    const step = GRID_RES * 0.8;
+    const step = GRID_RES * CFG.PHYSICS.LOS_STEP_FACTOR;
     const steps = Math.ceil(dist / step);
 
     for (let i = 1; i < steps; i++) {
@@ -159,7 +159,7 @@ export class PhysicsManager {
       const sx = fromX + dx * t;
       const sz = fromZ + dz * t;
 
-      if (this.checkBuildingCollision(sx, sz, 0.3)) {
+      if (this.checkBuildingCollision(sx, sz, CFG.PHYSICS.LOS_CHECK_R)) {
         return false;
       }
     }

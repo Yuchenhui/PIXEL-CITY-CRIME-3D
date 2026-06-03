@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CFG } from '@config/constants';
 
 /**
  * Three.js engine wrapper: manages scene, camera, renderer, lighting, and fog.
@@ -25,7 +26,7 @@ export class Engine {
   constructor() {
     // Scene
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x87ceeb, 0.014);
+    this.scene.fog = new THREE.FogExp2(0x87ceeb, CFG.RENDER.FOG_DENSITY);
     this.scene.background = new THREE.Color(0x87ceeb);
 
     // Camera
@@ -33,9 +34,9 @@ export class Engine {
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      250,
+      CFG.RENDER.FAR_PLANE,
     );
-    this.camera.position.set(0, 1.7, 0);
+    this.camera.position.set(0, CFG.PLAYER_H, 0);
 
     // Renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -43,7 +44,7 @@ export class Engine {
       powerPreference: 'high-performance',
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, CFG.RENDER.MAX_PIXEL_RATIO));
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.BasicShadowMap;
     this.renderer.toneMapping = THREE.NoToneMapping;
@@ -57,13 +58,13 @@ export class Engine {
     this.sunLight = new THREE.DirectionalLight(0xffeedd, 1.5);
     this.sunLight.position.set(50, 80, 30);
     this.sunLight.castShadow = true;
-    this.sunLight.shadow.mapSize.set(512, 512);
+    this.sunLight.shadow.mapSize.set(CFG.RENDER.SHADOW_MAP_SIZE, CFG.RENDER.SHADOW_MAP_SIZE);
     this.sunLight.shadow.camera.near = 1;
-    this.sunLight.shadow.camera.far = 150;
-    this.sunLight.shadow.camera.left = -60;
-    this.sunLight.shadow.camera.right = 60;
-    this.sunLight.shadow.camera.top = 60;
-    this.sunLight.shadow.camera.bottom = -60;
+    this.sunLight.shadow.camera.far = CFG.RENDER.SHADOW_CAM_FAR;
+    this.sunLight.shadow.camera.left = -CFG.RENDER.SHADOW_CAM_EXTENT;
+    this.sunLight.shadow.camera.right = CFG.RENDER.SHADOW_CAM_EXTENT;
+    this.sunLight.shadow.camera.top = CFG.RENDER.SHADOW_CAM_EXTENT;
+    this.sunLight.shadow.camera.bottom = -CFG.RENDER.SHADOW_CAM_EXTENT;
     this.scene.add(this.sunLight);
 
     // Groups
@@ -94,7 +95,7 @@ export class Engine {
 
   /** Get delta time capped at 50ms to avoid spiral of death */
   getDelta(): number {
-    return Math.min(this.clock.getDelta(), 0.05);
+    return Math.min(this.clock.getDelta(), CFG.RENDER.DELTA_CAP);
   }
 
   /** Update sky and lighting based on day factor (0=night, 1=day) */

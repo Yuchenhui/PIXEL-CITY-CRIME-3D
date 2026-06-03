@@ -3,6 +3,7 @@ import {
   type GameState, type StateChangeEvent, type StateChangeCallback,
 } from '@game/index';
 import { WEAPONS } from '@config/weapons';
+import { CFG } from '@config/constants';
 
 /**
  * Centralized game state manager with subscription-based change notifications.
@@ -48,6 +49,9 @@ export class StateManager {
       bobPhase: 0,
       sprintMul: 1,
       gameOverTime: 0,
+      volume: 1,
+      muted: false,
+      minimapZoom: 1,
     };
   }
 
@@ -97,9 +101,58 @@ export class StateManager {
     this.state = this.createInitialState();
     this.state.mode = mode;
     this.state.state = GameStateType.Playing;
-    this.state.money = 200; // Starting cash
-    this.state.ammo[0] = 999; // Pistol unlimited
+    this.state.money = CFG.PLAYER_EXTRA.STARTING_CASH; // Starting cash
+    this.state.ammo[0] = CFG.PLAYER_EXTRA.PISTOL_AMMO; // Pistol unlimited
     this.emit({ type: 'stateChange', value: GameStateType.Playing });
+  }
+
+  private static readonly SAVE_KEY = 'pixel_city_crime_3d_save';
+
+  /** Save game state + camera position to localStorage */
+  save(cameraPos: { x: number; y: number; z: number }): boolean {
+    try {
+      const data = {
+        state: this.state,
+        cam: cameraPos,
+      };
+      localStorage.setItem(StateManager.SAVE_KEY, JSON.stringify(data));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Load saved game state from localStorage.
+   * Returns camera position if save exists, null otherwise.
+   * On success, restores all GameState fields.
+   */
+  load(): { x: number; y: number; z: number } | null {
+    try {
+      const raw = localStorage.getItem(StateManager.SAVE_KEY);
+      if (!raw) return null;
+
+      const data = JSON.parse(raw);
+      const saved = data.state as GameState;
+      const cam = data.cam as { x: number; y: number; z: number };
+
+      if (!saved || !cam) return null;
+
+      // Validate required fields exist
+      if (typeof saved.hp !== 'number' || typeof saved.mode !== 'string') return null;
+
+      // Restore state
+      this.state = saved;
+      this.emit({ type: 'stateChange', value: GameStateType.Playing });
+      return cam;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Check if a save exists in localStorage */
+  hasSave(): boolean {
+    return localStorage.getItem(StateManager.SAVE_KEY) !== null;
   }
 
   /** Serialize state for save game (future use) */

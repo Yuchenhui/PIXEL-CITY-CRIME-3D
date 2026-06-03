@@ -16,25 +16,57 @@ import { SoundType } from '@game/index';
  */
 export class AudioManager {
   private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private _volume = 1;
+  private _muted = false;
 
   /** Initialize AudioContext (must be called from user gesture) */
   init(): void {
     if (!this.ctx) {
       try {
         this.ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        this.masterGain = this.ctx.createGain();
+        this.masterGain.connect(this.ctx.destination);
+        this.masterGain.gain.value = this._volume;
       } catch {
         // Audio not supported
       }
     }
   }
 
+  /** Set master volume (0–1). Does not affect muted state. */
+  setVolume(vol: number): void {
+    this._volume = Math.max(0, Math.min(1, vol));
+    if (this.masterGain && !this._muted) {
+      this.masterGain.gain.value = this._volume;
+    }
+  }
+
+  /** Get current volume (0–1) */
+  getVolume(): number {
+    return this._volume;
+  }
+
+  /** Toggle or set mute state. When muted, gain is 0 regardless of volume. */
+  setMuted(muted: boolean): void {
+    this._muted = muted;
+    if (this.masterGain) {
+      this.masterGain.gain.value = this._muted ? 0 : this._volume;
+    }
+  }
+
+  /** Check if currently muted */
+  isMuted(): boolean {
+    return this._muted;
+  }
+
   /** Play a procedural sound effect */
   playSound(type: SoundType, vol = 0.3): void {
-    if (!this.ctx) return;
+    if (!this.ctx || this._muted) return;
     try {
       const now = this.ctx.currentTime;
       const g = this.ctx.createGain();
-      g.connect(this.ctx.destination);
+      g.connect(this.masterGain ?? this.ctx.destination);
       g.gain.setValueAtTime(vol, now);
 
       switch (type) {

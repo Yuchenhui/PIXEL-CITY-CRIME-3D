@@ -81,11 +81,23 @@ export class Game {
       waveManager: null!,
       hud, minimap, menu: null!, combatLog, weaponShop,
       initSystems: () => this.initSystems(),
+      // Story mode systems (null until story mode is started)
+      storyManager: null,
+      dialogueManager: null,
+      questManager: null,
+      zoneManager: null,
+      npcManager: null,
+      triggerBridge: null,
+      dialoguePanel: null,
+      choicePanel: null,
+      storyUpdateAccum: 0,
     };
 
     // Create controllers
     this.flowController = new GameFlowController(this.refs, this.volumeSlider, this.volumeLabel);
     this.gameLoop = new GameLoop(this.refs, this.volumeIndicator, () => this.flowController.triggerGameOver());
+    this.gameLoop.setFlowController(this.flowController);
+
 
     // Menu with callbacks routed to flow controller
     const menu = new MenuController(

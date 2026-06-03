@@ -29,9 +29,10 @@ export class WaveManager {
 
     if (s.mode === GameMode.Survival) {
       this.updateSurvival(dt, playerX, playerZ);
-    } else {
+    } else if (s.mode === GameMode.FreeRoam) {
       this.updateFreeroam(dt, playerX, playerZ);
     }
+    // Story mode: no automatic wave spawning (enemies spawned by story events)
   }
 
   /**

@@ -67,15 +67,40 @@ export class GameLoop {
       // Wave management
       r.waveManager.update(dt, r.engine.camera.position.x, r.engine.camera.position.z);
 
-      // Update all systems
-      r.playerController.update(dt);
-      r.enemyAI.update(
-        dt,
-        r.engine.camera.position.x,
-        r.engine.camera.position.z,
-        (dmg, type) => r.playerController.takeDamage(dmg, type),
-      );
-      r.pickupSystem.update(dt, r.engine.camera.position.x, r.engine.camera.position.z);
+      // Story mode: skip combat updates during dialogue
+      const dialogueActive = r.dialogueManager?.active ?? false;
+
+      // Story mode: NPC animations every frame for smooth idle sway
+      if (r.npcManager) {
+        r.npcManager.update(dt, r.engine.camera.position.x, r.engine.camera.position.z);
+      }
+
+      // Story update at 5 Hz (throttled)
+      if (r.storyManager) {
+        r.storyUpdateAccum += dt;
+        const interval = 1 / CFG.STORY.UPDATE_HZ;
+        if (r.storyUpdateAccum >= interval) {
+          r.storyUpdateAccum -= interval;
+          // updateStory is called directly from refs - find the flowController
+          // We call it via a callback set by GameFlowController
+          const fc = (this as unknown as { _flowController?: { updateStory: (dt: number) => void } })._flowController;
+          if (fc) fc.updateStory(dt);
+        }
+      }
+
+      // Skip player/enemy updates during dialogue
+      if (!dialogueActive) {
+        // Update all systems
+        r.playerController.update(dt);
+        r.enemyAI.update(
+          dt,
+          r.engine.camera.position.x,
+          r.engine.camera.position.z,
+          (dmg, type) => r.playerController.takeDamage(dmg, type),
+        );
+        r.pickupSystem.update(dt, r.engine.camera.position.x, r.engine.camera.position.z);
+      }
+
       r.particleManager.update(dt);
       r.dayNightCycle.update(dt);
 
@@ -135,6 +160,11 @@ export class GameLoop {
 
     r.engine.render();
   };
+
+  /** Inject flow controller reference for story updates */
+  setFlowController(fc: { updateStory: (dt: number) => void }): void {
+    (this as unknown as { _flowController: { updateStory: (dt: number) => void } })._flowController = fc;
+  }
 
   /** Scan for nearby threats and report to combat log */
   private scanThreats(): void {

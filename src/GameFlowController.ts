@@ -20,6 +20,18 @@ import { MenuController } from '@ui/MenuController';
 import { CombatLog } from '@ui/CombatLog';
 import { WeaponShop } from '@ui/WeaponShop';
 import { eventBus } from '@core/EventBus';
+// Story mode imports
+import { StoryManager } from '@story/StoryManager';
+import { DialogueManager } from '@story/DialogueManager';
+import { QuestManager } from '@story/QuestManager';
+import { ZoneManager } from '@story/ZoneManager';
+import { TriggerQuestBridge } from '@story/TriggerQuestBridge';
+import { NPCManager } from '@story/NPCManager';
+import { CHARACTERS, NPC_SPAWN_POINTS } from '@story/CharacterData';
+import { DialoguePanel } from '@ui/DialoguePanel';
+import { ChoicePanel } from '@ui/ChoicePanel';
+import { MissionState } from '@story/types';
+import { DialogueTriggerManager } from '@story/DialogueTrigger';
 
 /**
  * Shared mutable references to all game systems.
@@ -57,6 +69,17 @@ export interface GameRefs {
 
   /** Callback to reinitialize all game systems (called on restart) */
   initSystems: () => void;
+
+  // ---- Story mode systems (null when not in story mode) ----
+  storyManager: StoryManager | null;
+  dialogueManager: DialogueManager | null;
+  questManager: QuestManager | null;
+  zoneManager: ZoneManager | null;
+  npcManager: NPCManager | null;
+  triggerBridge: TriggerQuestBridge | null;
+  dialoguePanel: DialoguePanel | null;
+  choicePanel: ChoicePanel | null;
+  storyUpdateAccum: number;
 }
 
 /**
@@ -70,8 +93,238 @@ export class GameFlowController {
     private volumeLabel: HTMLElement,
   ) {}
 
+  // ========== Story Mode ==========
+
+  /** Initialize and start story mode */
+  startStoryMode(): void {
+    const r = this.refs;
+    r.audio.init();
+
+    r.stateManager.resetForNewGame(GameMode.Story);
+
+    // Sync audio with state
+    const ms = r.stateManager.getMutableState();
+    r.audio.setVolume(ms.volume);
+    r.audio.setMuted(ms.muted);
+
+    // Clear existing world
+    r.engine.clearGroups();
+    r.enemyAI.clear();
+    r.vehicleSystem.clear();
+    r.particleManager.clear();
+    r.pickupSystem.clear();
+    r.worldGenerator.dispose();
+    r.physics.clearBuildings();
+
+    // Generate fresh world
+    r.worldGenerator = new WorldGenerator();
+    r.buildingGrid = r.worldGenerator.generate(r.engine.worldGroup);
+    r.physics.buildFromBuildingGrid(r.buildingGrid);
+
+    // Re-init systems with new world data
+    r.initSystems();
+
+    // Reset camera
+    r.engine.camera.position.set(0, CFG.PLAYER_H, 5);
+    r.engine.camera.rotation.set(0, 0, 0);
+    r.engine.camera.fov = 75;
+    r.engine.camera.updateProjectionMatrix();
+
+    // Spawn vehicles
+    r.vehicleSystem.spawnVehicles(CFG.VEHICLE_COUNT);
+
+    // ---- Initialize story systems ----
+    r.storyManager = new StoryManager();
+    r.dialogueManager = new DialogueManager();
+    r.questManager = new QuestManager();
+    r.zoneManager = new ZoneManager();
+    const dialogueTriggerMgr = new DialogueTriggerManager();
+    r.npcManager = new NPCManager(r.engine.enemyGroup, r.dialogueManager!, dialogueTriggerMgr);
+    r.triggerBridge = new TriggerQuestBridge(r.zoneManager!, r.storyManager!);
+    r.dialoguePanel = new DialoguePanel();
+    r.choicePanel = new ChoicePanel();
+    r.storyUpdateAccum = 0;
+
+    // Init UI panels
+    r.dialoguePanel!.init();
+    r.choicePanel!.init();
+
+    // Bind dialogue game functions
+    r.dialogueManager!.bindGameFunctions({
+      giveMoney: (amount: number) => {
+        r.stateManager.getMutableState().money += amount;
+      },
+      setFlag: (key: string, value: boolean) => {
+        r.storyManager!.setFlag(key, value);
+        // Auto-save checkpoint on flag change (key story moments)
+        if (key.startsWith('checkpoint_')) {
+          r.storyManager!.saveCheckpoint(key);
+        }
+      },
+      spawnEnemies: (count: number, type: string) => {
+        const enemyType = type === 'gang' ? EnemyTypeName.Gang
+          : type === 'heavy' ? EnemyTypeName.Heavy : EnemyTypeName.Gang;
+        r.enemyAI.spawnEnemies(count, [enemyType], r.engine.camera.position.x, r.engine.camera.position.z);
+      },
+      updateWanted: (change: number) => {
+        const s = r.stateManager.getMutableState();
+        s.wanted = Math.max(0, Math.min(CFG.GAME.MAX_WANTED, s.wanted + change));
+      },
+    });
+
+    // Wire dialogue UI callbacks
+    r.dialoguePanel!.onAdvance = () => this.advanceDialogue();
+    r.dialoguePanel!.onClose = () => this.closeDialogue();
+    r.choicePanel!.onSelect = (idx: number) => {
+      r.dialogueManager!.chooseChoice(idx);
+      this.advanceDialogue();
+    };
+
+    // Spawn story NPCs at their defined positions
+    for (const spawn of NPC_SPAWN_POINTS) {
+      const character = CHARACTERS.find(c => c.id === spawn.id);
+      if (character) {
+        r.npcManager!.spawnNPC(character, spawn.x, spawn.z);
+      }
+    }
+
+    // Try to restore saved story progress
+    if (r.storyManager!.hasSave()) {
+      r.storyManager!.load();
+    }
+
+    // Load chapter 1 ink story
+    r.storyManager!.loadInkStory('/story/chapter1.json');
+
+    // Show story HUD
+    r.hud.showStoryHUD();
+    r.hud.setChapter(r.storyManager!.getCurrentChapter(), '九龙城寨');
+
+    // Show HUD, hide menus
+    r.menu.hideAll();
+    r.hud.show();
+    r.combatLog.show();
+    document.body.classList.add('playing');
+
+    // Request pointer lock
+    r.input.requestPointerLock();
+    eventBus.emit('game-state-change', { state: 'playing' });
+  }
+
+  /** Advance dialogue by one step — called when player presses Space/Enter */
+  advanceDialogue(): void {
+    const r = this.refs;
+    if (!r.dialogueManager || !r.dialoguePanel) return;
+
+    // Check for choices first
+    const choices = r.dialogueManager.getChoices();
+    if (choices.length > 0) {
+      r.dialoguePanel.hide();
+      r.choicePanel!.showChoices(choices, (idx: number) => {
+        r.dialogueManager!.chooseChoice(idx);
+        this.advanceDialogue();
+      });
+      return;
+    }
+
+    // Continue story text
+    const line = r.dialogueManager.continue();
+    if (line !== null) {
+      const speaker = r.dialogueManager.getCurrentSpeaker();
+      r.dialoguePanel.displayText(speaker, line);
+    } else {
+      // Dialogue complete
+      r.dialogueManager.end();
+      r.dialoguePanel.hide();
+      r.choicePanel?.hide();
+    }
+  }
+
+  /** Close dialogue early — called when player presses Escape */
+  closeDialogue(): void {
+    const r = this.refs;
+    r.dialogueManager?.end();
+    r.dialoguePanel?.hide();
+    r.choicePanel?.hide();
+  }
+
+  /**
+   * Story mode update — called from GameLoop at CFG.STORY.UPDATE_HZ (5 Hz).
+   * Updates quest conditions, trigger zones, NPC behaviors, and HUD objectives.
+   */
+  updateStory(dt: number): void {
+    const r = this.refs;
+    if (!r.storyManager) return;
+
+    const px = r.engine.camera.position.x;
+    const pz = r.engine.camera.position.z;
+
+    // Update StoryManager (mission unlocks, proximity checks)
+    r.storyManager.update(dt, px, pz);
+
+    // Update QuestManager (condition checks, lane advancement)
+    r.questManager?.update(px, pz);
+
+    // Update ZoneManager (trigger zone activation)
+    r.zoneManager?.update(dt, px, pz);
+
+    // Show first dialogue line if dialogue just became active
+    if (r.dialogueManager?.active && r.dialoguePanel && !r.dialoguePanel.isVisible()) {
+      const line = r.dialogueManager.continue();
+      if (line !== null) {
+        const speaker = r.dialogueManager.getCurrentSpeaker();
+        r.dialoguePanel.displayText(speaker, line);
+        r.dialoguePanel.show();
+      }
+    }
+
+    // Update HUD chapter indicator
+    const chapter = r.storyManager.getCurrentChapter();
+    r.hud.setChapter(chapter, this.getChapterTitle(chapter));
+
+    // Update HUD mission objective
+    const mission = r.storyManager.getCurrentMission();
+    if (mission) {
+      const incomplete = mission.objectives.find(o => !o.complete);
+      if (incomplete) {
+        r.hud.updateObjective(incomplete.description);
+      } else {
+        r.hud.updateObjective('[任务完成] 返回任务点确认');
+      }
+    } else {
+      const avail = [...r.storyManager.getMissions().values()].find(
+        m => m.state === MissionState.Available,
+      );
+      if (avail) {
+        r.hud.updateObjective(`[可用] ${avail.def.title}`);
+      } else {
+        r.hud.updateObjective('探索城市');
+      }
+    }
+  }
+
+  /** Get chapter title string for HUD display */
+  private getChapterTitle(chapter: number): string {
+    const titles: Record<number, string> = {
+      1: '九龙城寨',
+      2: '暗流涌动',
+      3: '血色黄昏',
+      4: '风暴前夕',
+      5: '最终对决',
+      6: '余波',
+    };
+    return titles[chapter] ?? `第 ${chapter} 章`;
+  }
+
+  // ========== Standard Game Modes ==========
+
   /** Start a new game with the given mode */
   startGame(mode: string): void {
+    if (mode === 'story') {
+      this.startStoryMode();
+      return;
+    }
+
     const r = this.refs;
     r.audio.init();
 
@@ -138,6 +391,14 @@ export class GameFlowController {
     r.input.exitPointerLock();
     document.body.classList.remove('playing');
 
+    // Pause story dialogue if active
+    if (r.dialoguePanel?.isVisible()) {
+      r.dialoguePanel.hide();
+    }
+    if (r.choicePanel?.isVisible()) {
+      r.choicePanel.hide();
+    }
+
     // Sync volume slider with current state
     const s = r.stateManager.getState();
     this.volumeSlider.value = `${Math.round(s.volume * 100)}`;
@@ -161,6 +422,28 @@ export class GameFlowController {
 
   backToMenu(): void {
     const r = this.refs;
+
+    // Clean up story mode systems
+    if (r.storyManager) {
+      r.storyManager.save();
+      r.storyManager.clear();
+      r.storyManager = null;
+    }
+    r.dialogueManager = null;
+    r.questManager?.clear();
+    r.questManager = null;
+    r.zoneManager?.clear();
+    r.zoneManager = null;
+    r.npcManager?.clear();
+    r.npcManager = null;
+    r.triggerBridge = null;
+    r.dialoguePanel?.dispose();
+    r.dialoguePanel = null;
+    r.choicePanel?.dispose();
+    r.choicePanel = null;
+
+    r.hud.hideStoryHUD();
+
     r.stateManager.set('state', GameStateType.Menu);
     r.menu.hideAll();
     r.hud.hide();
@@ -199,6 +482,19 @@ export class GameFlowController {
     const r = this.refs;
     const s = r.stateManager.getState();
     if (s.state !== GameStateType.Playing && s.state !== GameStateType.Paused) return;
+
+    // Sync storyProgress into GameState before saving
+    if (r.storyManager) {
+      const progress = {
+        currentChapter: r.storyManager.getCurrentChapter(),
+        completedMissions: [...r.storyManager.getCompletedMissions()],
+        flags: Object.fromEntries((r.storyManager as unknown as { flags: Map<string, boolean> }).flags),
+        missionStates: {},
+        currentMissionId: r.storyManager.getCurrentMissionId(),
+      };
+      r.stateManager.setStoryProgress(progress);
+      r.storyManager.saveCheckpoint('game_save');
+    }
 
     const cam = r.engine.camera.position;
     const ok = r.stateManager.save({ x: cam.x, y: cam.y, z: cam.z });

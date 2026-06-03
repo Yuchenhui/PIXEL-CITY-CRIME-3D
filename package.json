@@ -25,7 +25,11 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/"
   },
   "dependencies": {
     "three": "0.160.0",
@@ -34,6 +38,11 @@
   "devDependencies": {
     "@types/three": "^0.160.0",
     "typescript": "^5.4.0",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "eslint": "^9.0.0",
+    "@eslint/js": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "prettier": "^3.4.0",
+    "eslint-config-prettier": "^10.0.0"
   }
 }

@@ -112,8 +112,8 @@ export class PlayerController {
 
     // Head bob
     if (mlen > 0 && s.onGround) {
-      s.bobPhase += dt * (sprint ? 14 : 10);
-      this.camera.position.y += Math.sin(s.bobPhase) * 0.04;
+      s.bobPhase += dt * (sprint ? CFG.PLAYER_EXTRA.HEAD_BOB_SPRINT_FREQ : CFG.PLAYER_EXTRA.HEAD_BOB_WALK_FREQ);
+      this.camera.position.y += Math.sin(s.bobPhase) * CFG.PLAYER_EXTRA.HEAD_BOB_AMP;
     }
   }
 
@@ -123,8 +123,8 @@ export class PlayerController {
     this.camera.rotation.y -= dx * CFG.MOUSE_SENS;
     this.camera.rotation.x -= dy * CFG.MOUSE_SENS;
     this.camera.rotation.x = Math.max(
-      -Math.PI / 2 + 0.1,
-      Math.min(Math.PI / 2 - 0.1, this.camera.rotation.x),
+      -Math.PI / 2 + CFG.PLAYER_EXTRA.CAMERA_X_MARGIN,
+      Math.min(Math.PI / 2 - CFG.PLAYER_EXTRA.CAMERA_X_MARGIN, this.camera.rotation.x),
     );
   }
 
@@ -174,7 +174,7 @@ export class PlayerController {
     if (s.hp <= 0) return 0;
     const originalDmg = dmg;
     if (s.armor > 0) {
-      const absorbed = Math.min(s.armor, dmg * 0.6);
+      const absorbed = Math.min(s.armor, dmg * CFG.PLAYER_EXTRA.ARMOR_ABSORB);
       s.armor -= absorbed;
       dmg -= absorbed;
     }

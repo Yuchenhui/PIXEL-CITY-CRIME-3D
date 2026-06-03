@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { CFG } from '@config/constants';
 import { SoundType } from '@game/index';
 import { WEAPONS } from '@config/weapons';
 import { AudioManager } from '@core/AudioManager';
@@ -20,6 +21,7 @@ export class ShootingSystem {
   private _start = new THREE.Vector3();
   private _end = new THREE.Vector3();
   private _offset = new THREE.Vector3(0.3, -0.15, -0.5);
+  private _offsetQ = new THREE.Vector3();
 
   // Shared tracer geometry (unit-length cylinder aligned to -Z axis, scaled per tracer)
   private static tracerGeo = (() => {
@@ -137,19 +139,19 @@ export class ShootingSystem {
 
     // Muzzle flash
     this.muzzleFlash.intensity = 3;
-    setTimeout(() => { this.muzzleFlash.intensity = 0; }, 50);
+    setTimeout(() => { this.muzzleFlash.intensity = 0; }, CFG.WEAPON_SYS.MUZZLE_FLASH_MS);
 
     // Recoil
     if (this.weaponViewModel.children[1]) {
       const vm = this.weaponViewModel.children[1];
-      vm.position.z += 0.05;
-      setTimeout(() => { vm.position.z = -0.4; }, 80);
+      vm.position.z += CFG.WEAPON_SYS.RECOIL_AMOUNT;
+      setTimeout(() => { vm.position.z = -0.4; }, CFG.WEAPON_SYS.RECOIL_RETURN_MS);
     }
 
     // Fire pellets
     const pellets = w.pellets || 1;
     for (let p = 0; p < pellets; p++) {
-      const spread = w.spread * (s.inVehicle !== null ? 2 : 1);
+      const spread = w.spread * (s.inVehicle !== null ? CFG.WEAPON_SYS.VEHICLE_SPREAD_MUL : 1);
       this._dir.set(
         (Math.random() - 0.5) * spread,
         (Math.random() - 0.5) * spread,
@@ -160,11 +162,14 @@ export class ShootingSystem {
       this.raycaster.set(this.camera.position, this._dir);
       this.raycaster.far = w.range;
 
-      // Check enemy hits
-      const enemyMeshes = this.enemyAI.getEnemies()
-        .filter(e => !e.dead)
-        .map(e => e.mesh);
+      // Collect alive enemy meshes without allocating arrays
+      const enemies = this.enemyAI.getEnemies();
+      const enemyMeshes: THREE.Object3D[] = [];
+      for (let ei = 0; ei < enemies.length; ei++) {
+        if (!enemies[ei].dead) enemyMeshes.push(enemies[ei].mesh);
+      }
       const hits = this.raycaster.intersectObjects(enemyMeshes, true);
+
 
       if (hits.length > 0) {
         const hitObj = hits[0];
@@ -179,9 +184,9 @@ export class ShootingSystem {
 
       // Bullet tracer
       if (!w.flame) {
-        this._start.copy(this.camera.position).add(
-          this._offset.clone().applyQuaternion(this.camera.quaternion),
-        );
+        this._start.copy(this.camera.position);
+        this._offsetQ.copy(this._offset).applyQuaternion(this.camera.quaternion);
+        this._start.add(this._offsetQ);
         if (hits.length > 0) {
           this._end.copy(hits[0].point);
         } else {
@@ -227,7 +232,7 @@ export class ShootingSystem {
     if (!s.ownedWeapons[idx]) return; // Can't switch to unowned weapon
     s.weaponIdx = idx;
     s.reloading = false;
-    s.fireTimer = 0.3;
+    s.fireTimer = CFG.WEAPON_SYS.SWITCH_FIRE_TIMER;
     this.updateWeaponModel();
   }
 
@@ -251,7 +256,7 @@ export class ShootingSystem {
     setTimeout(() => {
       mat.dispose();
       this.scene.remove(m);
-    }, 60);
+    }, CFG.WEAPON_SYS.TRACER_LIFE_MS);
   }
 
   private spawnExplosion(pos: THREE.Vector3): void {
@@ -270,13 +275,13 @@ export class ShootingSystem {
     for (const e of this.enemyAI.getEnemies()) {
       if (e.dead) continue;
       const d = Math.sqrt((e.x - pos.x) ** 2 + (e.z - pos.z) ** 2);
-      if (d < 8) {
-        e.hp -= 120 * (1 - d / 8);
+      if (d < CFG.WEAPON_SYS.EXPLOSION_RADIUS) {
+        e.hp -= CFG.WEAPON_SYS.EXPLOSION_DMG * (1 - d / CFG.WEAPON_SYS.EXPLOSION_RADIUS);
         if (e.hp <= 0 && !e.dead) {
           e.dead = true;
           e.deathTime = s.time;
           s.kills++;
-          s.score += 20;
+          s.score += CFG.WEAPON_SYS.EXPLOSION_KILL_SCORE;
         }
       }
     }

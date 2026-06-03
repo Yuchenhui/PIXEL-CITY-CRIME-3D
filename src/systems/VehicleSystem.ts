@@ -135,7 +135,7 @@ export class VehicleSystem {
   isNearVehicle(playerX: number, playerZ: number): boolean {
     for (const v of this.vehicles) {
       if (v.hp <= 0) continue;
-      if (distance2D(playerX, playerZ, v.x, v.z) < 4) return true;
+      if (distance2D(playerX, playerZ, v.x, v.z) < CFG.VEHICLE.NEAR_DIST) return true;
     }
     return false;
   }
@@ -143,7 +143,7 @@ export class VehicleSystem {
   /** Try to enter the nearest vehicle. Returns true if successful. */
   tryEnter(playerX: number, playerZ: number): boolean {
     let best = -1;
-    let bestD = 5;
+    let bestD: number = CFG.VEHICLE.ENTER_DIST;
     for (let i = 0; i < this.vehicles.length; i++) {
       const v = this.vehicles[i];
       if (v.hp <= 0) continue;
@@ -152,8 +152,8 @@ export class VehicleSystem {
     }
 
     if (best >= 0) {
-      this.stateManager.getMutableState().inVehicle = best;
-      this.engine_camera.fov = 90;
+      this.engine_camera.fov = CFG.RENDER.CAMERA_FOV_VEHICLE;
+      this.engine_camera.fov = CFG.RENDER.CAMERA_FOV;
       this.engine_camera.updateProjectionMatrix();
       this.interiorYaw = 0;
       this.interiorPitch = 0;
@@ -174,17 +174,17 @@ export class VehicleSystem {
     if (s.inVehicle === null) return;
 
     const v = this.vehicles[s.inVehicle];
-    let exitX = v.x + Math.cos(v.angle + Math.PI / 2) * 3;
-    let exitZ = v.z + Math.sin(v.angle + Math.PI / 2) * 3;
+    let exitX = v.x + Math.cos(v.angle + Math.PI / 2) * CFG.VEHICLE.EXIT_OFFSET;
+    let exitZ = v.z + Math.sin(v.angle + Math.PI / 2) * CFG.VEHICLE.EXIT_OFFSET;
 
     // Fallback to other side if blocked
     if (this.physics.checkBuildingCollision(exitX, exitZ, CFG.PLAYER_R)) {
-      exitX = v.x - Math.cos(v.angle + Math.PI / 2) * 3;
-      exitZ = v.z - Math.sin(v.angle + Math.PI / 2) * 3;
+      exitX = v.x - Math.cos(v.angle + Math.PI / 2) * CFG.VEHICLE.EXIT_OFFSET;
+      exitZ = v.z - Math.sin(v.angle + Math.PI / 2) * CFG.VEHICLE.EXIT_OFFSET;
     }
 
     this.engine_camera.position.set(exitX, CFG.PLAYER_H, exitZ);
-    this.engine_camera.fov = 75;
+    this.engine_camera.fov = CFG.RENDER.CAMERA_FOV;
     this.engine_camera.rotation.set(0, 0, 0);
     this.engine_camera.updateProjectionMatrix();
     this.interiorGroup.visible = false;
@@ -204,7 +204,7 @@ export class VehicleSystem {
 
     if (!v || v.hp <= 0) {
       s.inVehicle = null;
-      this.engine_camera.fov = 75;
+      this.engine_camera.fov = CFG.RENDER.CAMERA_FOV;
       this.engine_camera.updateProjectionMatrix();
       this.interiorGroup.visible = false;
       return;
@@ -216,23 +216,29 @@ export class VehicleSystem {
     if (keys['KeyS']) accel = -0.5;
     if (keys['KeyA']) steer = -1;
     if (keys['KeyD']) steer = 1;
-    if (keys['Space']) v.speed *= 0.95;
+    if (keys['Space']) v.speed *= CFG.VEHICLE.BRAKE_DECEL;
 
     if (accel) v.speed += accel * v.type.acc * dt;
-    else v.speed *= 0.98;
+    else v.speed *= CFG.VEHICLE.COAST_DECEL;
     v.speed = Math.max(-v.type.maxSpd * 0.3, Math.min(v.type.maxSpd, v.speed));
-    if (Math.abs(v.speed) < 0.5) v.speed = 0;
+    if (Math.abs(v.speed) < CFG.VEHICLE.MIN_SPEED) v.speed = 0;
 
-    const sf = Math.min(1, Math.abs(v.speed) / 10);
+    const sf = Math.min(1, Math.abs(v.speed) / CFG.VEHICLE.STEER_SPEED_THRESH);
     v.angle += steer * v.type.turn * sf * dt * (v.speed > 0 ? 1 : -1);
 
     const nx = v.x + Math.sin(v.angle) * v.speed * dt;
     const nz = v.z + Math.cos(v.angle) * v.speed * dt;
-    if (!this.physics.checkBuildingCollision(nx, nz, v.type.w / 2)) {
+    const collisionRadius = Math.max(v.type.w, v.type.l) / 2;
+    if (!this.physics.checkBuildingCollision(nx, nz, collisionRadius)) {
       v.x = nx;
       v.z = nz;
     } else {
-      v.speed *= -0.3;
+      // Building collision: heavy speed reduction + particle burst
+      if (Math.abs(v.speed) > CFG.VEHICLE.BUILDING_CRASH_PARTICLE_THRESH) {
+        this.particles.spawn(nx, 0.5, nz, 0x888888, 4);
+        this.audio.playSound(SoundType.Hit, 0.3);
+      }
+      v.speed *= CFG.VEHICLE.BUILDING_CRASH_DECEL;
     }
 
     v.mesh.position.set(v.x, 0, v.z);
@@ -244,18 +250,18 @@ export class VehicleSystem {
     // Run over enemies
     for (const e of this.enemyAI.getEnemies()) {
       if (e.dead) continue;
-      if (distance2D(v.x, v.z, e.x, e.z) < 2 && Math.abs(v.speed) > 5) {
-        e.hp -= Math.abs(v.speed) * 2;
+      if (distance2D(v.x, v.z, e.x, e.z) < CFG.VEHICLE.RUNOVER_DIST && Math.abs(v.speed) > CFG.VEHICLE.RUNOVER_SPEED_THRESH) {
+        e.hp -= Math.abs(v.speed) * CFG.VEHICLE.RUNOVER_DMG_MUL;
         if (e.hp <= 0 && !e.dead) {
           e.dead = true;
           e.deathTime = s.time;
           s.kills++;
-          s.score += 15;
+          s.score += CFG.VEHICLE.RUNOVER_SCORE;
           this.combatLog.logVehicleRunOver();
           this.combatLog.logKill(e.type);
           if (e.type === 'civilian') {
-            s.wanted = Math.min(5, s.wanted + 2);
-            s.wantedTimer = 15;
+            s.wanted = Math.min(CFG.GAME.MAX_WANTED, s.wanted + 2);
+            s.wantedTimer = CFG.GAME.WANTED_DECAY_TIMER;
           }
         }
         this.particles.spawn(e.x, 1, e.z, 0xaa1111, 5);
@@ -266,6 +272,8 @@ export class VehicleSystem {
     if (mouseDown && fireTimer <= 0) {
       shootFn();
     }
+    // Vehicle-to-vehicle collision
+    this.resolveVehicleCollisions(v);
   }
 
   /** Create car interior viewmodel (dashboard, steering wheel, pillars) */
@@ -317,8 +325,8 @@ export class VehicleSystem {
     const { dx, dy } = this.input.consumeMouseDelta();
     this.interiorYaw -= dx * CFG.MOUSE_SENS;
     this.interiorPitch -= dy * CFG.MOUSE_SENS;
-    this.interiorYaw = Math.max(-1.2, Math.min(1.2, this.interiorYaw));
-    this.interiorPitch = Math.max(-0.6, Math.min(0.5, this.interiorPitch));
+    this.interiorYaw = Math.max(-CFG.VEHICLE.INTERIOR_YAW_LIMIT, Math.min(CFG.VEHICLE.INTERIOR_YAW_LIMIT, this.interiorYaw));
+    this.interiorPitch = Math.max(-CFG.VEHICLE.INTERIOR_PITCH_DOWN, Math.min(CFG.VEHICLE.INTERIOR_PITCH_UP, this.interiorPitch));
 
     // Position camera at driver seat (world space)
     const sin = Math.sin(v.angle);
@@ -341,6 +349,55 @@ export class VehicleSystem {
     this.interiorGroup.rotation.set(0, 0, 0);
   }
   /** Clear all vehicles */
+
+  /**
+   * Check and resolve collision between the given vehicle and all other vehicles.
+   * Uses circle-based collision with combined radii.
+   */
+  private resolveVehicleCollisions(moving: VehicleEntity): void {
+    const movingRadius = Math.max(moving.type.w, moving.type.l) / 2;
+    for (const other of this.vehicles) {
+      if (other === moving || other.hp <= 0) continue;
+      const otherRadius = Math.max(other.type.w, other.type.l) / 2;
+      const minDist = movingRadius + otherRadius;
+      const dx = moving.x - other.x;
+      const dz = moving.z - other.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < minDist && dist > 0.01) {
+        // Push vehicles apart to resolve overlap
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const nz = dz / dist;
+
+        moving.x += nx * overlap * CFG.VEHICLE.COLLISION_PUSH_SELF;
+        moving.z += nz * overlap * CFG.VEHICLE.COLLISION_PUSH_SELF;
+        other.x -= nx * overlap * CFG.VEHICLE.COLLISION_PUSH_OTHER;
+        other.z -= nz * overlap * CFG.VEHICLE.COLLISION_PUSH_OTHER;
+
+        // Momentum transfer: moving vehicle transfers speed to the other
+        const relSpeed = moving.speed;
+        moving.speed *= CFG.VEHICLE.COLLISION_SPEED_RETAIN;
+        if (Math.abs(relSpeed) > CFG.VEHICLE.COLLISION_PARTICLE_THRESH) {
+          const cx = (moving.x + other.x) / 2;
+          const cz = (moving.z + other.z) / 2;
+          this.particles.spawn(cx, 0.5, cz, 0xaaaaaa, 4);
+          this.audio.playSound(SoundType.Hit, 0.2);
+        }
+
+        // Sync mesh positions
+        moving.mesh.position.set(moving.x, 0, moving.z);
+        other.mesh.position.set(other.x, 0, other.z);
+
+        // Damage both vehicles on high-speed impact
+        if (Math.abs(relSpeed) > CFG.VEHICLE.COLLISION_DMG_SPEED_THRESH) {
+          const dmg = Math.abs(relSpeed) * CFG.VEHICLE.COLLISION_DMG_MUL;
+          moving.hp = Math.max(0, moving.hp - dmg);
+          other.hp = Math.max(0, other.hp - dmg);
+        }
+      }
+    }
+  }
   clear(): void {
     for (const v of this.vehicles) {
       this.vehicleGroup.remove(v.mesh);

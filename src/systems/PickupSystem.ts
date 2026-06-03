@@ -5,6 +5,7 @@ import { AudioManager } from '@core/AudioManager';
 import { StateManager } from '@core/StateManager';
 import { distance2D } from '@utils/math';
 import { CombatLog } from '@ui/CombatLog';
+import { CFG } from '@config/constants';
 
 const PICKUP_COLORS: Record<PickupType, number> = {
   [PickupType.Health]: 0x44ff44,
@@ -57,7 +58,7 @@ export class PickupSystem {
     m.castShadow = false;
     this.scene.add(m);
 
-    this.pickups.push({ mesh: m, type, x, z, life: 30 });
+    this.pickups.push({ mesh: m, type, x, z, life: CFG.PICKUP.LIFETIME });
   }
 
   /** Update pickups: rotation, bobbing, lifetime, collection */
@@ -77,19 +78,19 @@ export class PickupSystem {
       }
 
       const d = distance2D(playerX, playerZ, p.x, p.z);
-      if (d < 2) {
+      if (d < CFG.PICKUP.COLLECT_DIST) {
         // Apply effect
         switch (p.type) {
           case PickupType.Health:
-            s.hp = Math.min(100, s.hp + 25);
+            s.hp = Math.min(100, s.hp + CFG.PICKUP.HEALTH_AMOUNT);
             break;
           case PickupType.Ammo:
             for (let w = 1; w < WEAPONS.length; w++) {
-              s.ammo[w] = WEAPONS[w].mag * 3;
+              s.ammo[w] = WEAPONS[w].mag * CFG.PICKUP.AMMO_MAG_MUL;
             }
             break;
           case PickupType.Armor:
-            s.armor = Math.min(100, s.armor + 30);
+            s.armor = Math.min(100, s.armor + CFG.PICKUP.ARMOR_AMOUNT);
             break;
         }
 

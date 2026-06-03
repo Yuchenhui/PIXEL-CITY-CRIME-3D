@@ -31,10 +31,10 @@ export class ParticleManager {
 
       this.particles.push({
         mesh: m,
-        vx: (Math.random() - 0.5) * 8,
-        vy: Math.random() * 5 + 2,
-        vz: (Math.random() - 0.5) * 8,
-        life: 0.5 + Math.random() * 0.5,
+        vx: (Math.random() - 0.5) * CFG.PARTICLE.SPAWN_VEL_XZ * 2,
+        vy: Math.random() * (CFG.PARTICLE.SPAWN_VEL_UP_MAX - CFG.PARTICLE.SPAWN_VEL_UP_MIN) + CFG.PARTICLE.SPAWN_VEL_UP_MIN,
+        vz: (Math.random() - 0.5) * CFG.PARTICLE.SPAWN_VEL_XZ * 2,
+        life: CFG.PARTICLE.LIFE_MIN + Math.random() * CFG.PARTICLE.LIFE_RANGE,
       });
     }
   }
@@ -46,7 +46,7 @@ export class ParticleManager {
       p.mesh.position.x += p.vx * dt;
       p.mesh.position.y += p.vy * dt;
       p.mesh.position.z += p.vz * dt;
-      p.vy -= 15 * dt;
+      p.vy -= CFG.PARTICLE.GRAVITY * dt;
       p.life -= dt;
       (p.mesh.material as THREE.MeshBasicMaterial).opacity = Math.max(0, p.life);
 

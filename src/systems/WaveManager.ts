@@ -55,15 +55,15 @@ export class WaveManager {
         if (s.wave >= 5) types.push(EnemyTypeName.Heavy);
 
         // Linear enemy count scaling
-        this.enemyAI.spawnEnemies(3 + s.wave * 2, types, playerX, playerZ);
-        s.score += s.wave * 100; // Wave clear bonus
+        this.enemyAI.spawnEnemies(CFG.WAVE.BASE_COUNT + s.wave * CFG.WAVE.COUNT_PER_WAVE, types, playerX, playerZ);
+        s.score += s.wave * CFG.WAVE.CLEAR_BONUS; // Wave clear bonus
       }
     } else {
       // Wave in progress — advance when all enemies are dead
       const alive = this.enemyAI.getAliveCount();
       if (alive === 0) {
         s.waveBreak = true;
-        s.waveBreakTimer = 5; // 5-second break between waves
+        s.waveBreakTimer = CFG.WAVE.BREAK_DURATION; // 5-second break between waves
       }
     }
   }
@@ -77,7 +77,7 @@ export class WaveManager {
     const s = this.stateManager.getMutableState();
     const aliveCount = this.enemyAI.getAliveCount();
 
-    if (aliveCount < CFG.FREEROAM_MIN_ENEMIES && Math.random() < dt * 0.5) {
+    if (aliveCount < CFG.FREEROAM_MIN_ENEMIES && Math.random() < dt * CFG.WAVE.FREEROAM_RESPAWN_RATE) {
       // Civilian and gang are common; duplicates weight the random pick
       const types: EnemyTypeName[] = [EnemyTypeName.Civilian, EnemyTypeName.Gang, EnemyTypeName.Gang];
       if (s.wanted >= 1) types.push(EnemyTypeName.Police);   // Police only at wanted 1+

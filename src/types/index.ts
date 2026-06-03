@@ -333,6 +333,16 @@ export interface GameState {
   // --- Game over ---
   /** Game time at which the player died */
   gameOverTime: number;
+
+  // --- Audio ---
+  /** Master volume 0–1 (1 = full volume) */
+  volume: number;
+  /** True when audio is muted */
+  muted: boolean;
+
+  // --- Minimap ---
+  /** Minimap zoom level (0.5, 1, or 2) */
+  minimapZoom: number;
 }
 
 /** End-of-game statistics displayed on the Game Over screen */

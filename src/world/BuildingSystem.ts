@@ -3,6 +3,13 @@ import { CFG, WORLD_SIZE } from '@config/constants';
 import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 
+/** Circular exclusion zone where normal buildings must not be placed */
+export interface ExclusionZone {
+  x: number;
+  z: number;
+  radius: number;
+}
+
 const BUILD_COLORS = [0x6a5040, 0x5a6070, 0x7a6050, 0x505a6a, 0x6a5a50, 0x706a5a, 0x8a7060, 0x607080];
 
 // Number of spatial chunks per axis for frustum culling
@@ -18,7 +25,7 @@ export class BuildingSystem {
   private chunkMeshes: THREE.InstancedMesh[] = [];
 
   /** Generate buildings into the given Three.js group. Returns collision data. */
-  generate(group: THREE.Group): BuildingData[] {
+  generate(group: THREE.Group, exclusions: ExclusionZone[] = []): BuildingData[] {
     const BS = CFG.BLOCK_SIZE;
     const RW = CFG.ROAD_W;
     const CELL = BS + RW;
@@ -46,6 +53,9 @@ export class BuildingSystem {
           const oz = Math.random() * (BS - d);
           const px = cx + ox + w / 2;
           const pz = cz + oz + d / 2;
+
+          // Skip buildings inside exclusion zones (story mode areas)
+          if (this.isExcluded(px, pz, exclusions)) continue;
 
           // Collision data
           this.buildingGrid.push({
@@ -108,6 +118,16 @@ export class BuildingSystem {
   /** Get collision grid data */
   getBuildingGrid(): BuildingData[] {
     return this.buildingGrid;
+  }
+
+  /** Check if a position falls within any exclusion zone */
+  private isExcluded(x: number, z: number, exclusions: ExclusionZone[]): boolean {
+    for (const zone of exclusions) {
+      const dx = x - zone.x;
+      const dz = z - zone.z;
+      if (dx * dx + dz * dz < zone.radius * zone.radius) return true;
+    }
+    return false;
   }
 
   /** Clear and dispose resources */

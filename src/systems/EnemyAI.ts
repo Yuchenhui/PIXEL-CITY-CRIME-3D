@@ -25,6 +25,7 @@ import { ParticleManager } from './ParticleManager';
 import { PickupSystem } from './PickupSystem';
 import { PhysicsManager } from '@core/PhysicsManager';
 import { CombatLog } from '@ui/CombatLog';
+import { eventBus } from '@core/EventBus';
 import { EnemyRenderer } from './EnemyRenderer';
 
 // Seconds before dead enemy mesh is removed from the scene
@@ -326,6 +327,10 @@ export class EnemyAI {
       // 30% drop rate — enough to reward kills without flooding the map
       if (Math.random() < CFG.ENEMY.DROP_RATE) {
         this.pickupSystem.spawnPickup(enemy.x, enemy.z);
+      }
+      // Boss kill emits a dedicated event for the quest system
+      if (enemy.type === EnemyTypeName.Boss) {
+        eventBus.emit('boss-killed', { type: enemy.type, x: enemy.x, z: enemy.z });
       }
       return true;
     }

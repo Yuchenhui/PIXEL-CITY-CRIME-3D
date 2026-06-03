@@ -36,6 +36,7 @@ export class MenuController {
       const text = btn.textContent?.trim();
       if (text === 'FREE ROAM') btn.addEventListener('click', () => this.onStart('freeroam'));
       else if (text === 'SURVIVAL MODE') btn.addEventListener('click', () => this.onStart('survival'));
+      else if (text === 'STORY MODE') btn.addEventListener('click', () => this.onStart('story'));
       else if (text === 'CONTROLS') {
         btn.addEventListener('click', () => {
           const ci = document.getElementById('controlsInfo')!;

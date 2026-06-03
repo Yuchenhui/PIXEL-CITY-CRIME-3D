@@ -1,5 +1,6 @@
 import { WORLD_SIZE } from '@config/constants';
 import type { BuildingData, EnemyEntity, VehicleEntity } from '@game/index';
+import type { StoryLocation } from '@world/StoryLocations';
 
 /**
  * Minimap 2D renderer: draws a top-down view of the game world.
@@ -8,11 +9,17 @@ import type { BuildingData, EnemyEntity, VehicleEntity } from '@game/index';
 export class MinimapRenderer {
   private ctx: CanvasRenderingContext2D;
   private size = 140;
+  /** Story-mode location markers (coloured dots with labels) */
+  private storyMarkers: StoryLocation[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext('2d')!;
   }
 
+  /** Set or clear story location markers displayed on the minimap */
+  setStoryMarkers(markers: StoryLocation[]): void {
+    this.storyMarkers = markers;
+  }
   /**
    * Render the minimap from current world state.
    * @param zoom Zoom level (0.5 = close, 1 = default, 2 = far).
@@ -73,6 +80,25 @@ export class MinimapRenderer {
       const vz = (v.z - playerZ) * scale + s / 2;
       if (vx < 0 || vx > s || vz < 0 || vz > s) continue;
       ctx.fillRect(vx - 1, vz - 1, 3, 3);
+    }
+
+    // Story location markers
+    for (const m of this.storyMarkers) {
+      const mx = (m.x - playerX) * scale + s / 2;
+      const mz = (m.z - playerZ) * scale + s / 2;
+      if (mx < 0 || mx > s || mz < 0 || mz > s) continue;
+
+      // Coloured dot
+      ctx.fillStyle = m.markerColor;
+      ctx.beginPath();
+      ctx.arc(mx, mz, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label (short Chinese name)
+      ctx.fillStyle = m.markerColor;
+      ctx.font = '8px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(m.name, mx, mz - 5);
     }
 
     // Zoom level label

@@ -301,7 +301,19 @@ export const CFG = {
     /** LOS sample collision radius (units) */
     LOS_CHECK_R: 0.3,
   } as const,
-} as const;
+
+  // Story mode
+  STORY: {
+    /** Story system update rate (Hz) — lower than frame rate to save CPU */
+    UPDATE_HZ: 5,
+    /** Distance to trigger proximity-based mission events (units) */
+    TRIGGER_RANGE: 20,
+    /** Distance to interact with an NPC (units) */
+    NPC_INTERACT_DIST: 3,
+    /** Height of the dialogue panel in the HUD (pixels) */
+    DIALOGUE_PANEL_HEIGHT: 200,
+  } as const,
+  } as const;
 
 /** Computed world size (total map dimension) */
 export const WORLD_SIZE = CFG.MAP_BLOCKS * (CFG.BLOCK_SIZE + CFG.ROAD_W);

@@ -52,6 +52,7 @@ export class StateManager {
       volume: 1,
       muted: false,
       minimapZoom: 1,
+      storyProgress: null,
     };
   }
 
@@ -153,6 +154,15 @@ export class StateManager {
   /** Check if a save exists in localStorage */
   hasSave(): boolean {
     return localStorage.getItem(StateManager.SAVE_KEY) !== null;
+  }
+
+  /**
+   * Update story progress in game state.
+   * Called by GameFlowController before save / after load to sync
+   * StoryManager state into the serializable GameState.
+   */
+  setStoryProgress(progress: import('@story/types').StoryProgress | null): void {
+    this.state.storyProgress = progress;
   }
 
   /** Serialize state for save game (future use) */

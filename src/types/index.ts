@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import type { Body } from 'cannon-es';
+import type { StoryProgress } from '@story/types';
 
 // ========== Enums ==========
 
@@ -14,6 +15,8 @@ export enum GameMode {
   FreeRoam = 'freeroam',
   /** Wave-based survival with escalating difficulty */
   Survival = 'survival',
+  /** Story-driven campaign with missions, NPCs, and dialogue */
+  Story = 'story',
 }
 
 /** High-level game state machine */
@@ -43,6 +46,11 @@ export enum EnemyTypeName {
   Gang = 'gang',
   Police = 'police',
   Heavy = 'heavy',
+  // Story mode — 九龙城寨
+  TriadEnforcer = 'triad_enforcer',
+  CorruptCop = 'corrupt_cop',
+  DrugDealer = 'drug_dealer',
+  Boss = 'boss',
 }
 
 /** Pickup item types dropped by enemies */
@@ -343,8 +351,11 @@ export interface GameState {
   // --- Minimap ---
   /** Minimap zoom level (0.5, 1, or 2) */
   minimapZoom: number;
-}
 
+  // --- Story mode ---
+  /** Story / mission progress (null when not in story mode) */
+  storyProgress: StoryProgress | null;
+}
 /** End-of-game statistics displayed on the Game Over screen */
 export interface GameOverStats {
   score: number;

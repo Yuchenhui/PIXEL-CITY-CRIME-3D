@@ -1,3 +1,5 @@
+import { eventBus } from '@core/EventBus';
+
 /**
  * Combat log: shows real-time event messages in the bottom-right corner.
  * Messages auto-fade after a few seconds.
@@ -24,6 +26,28 @@ export class CombatLog {
 
   constructor() {
     this.container = document.getElementById('combatLog') as HTMLDivElement;
+    this.subscribeToEvents();
+  }
+
+  /** Subscribe to game events for automatic combat log messages */
+  private subscribeToEvents(): void {
+    eventBus.on('enemy-killed', (data) => {
+      this.logKill(data.type);
+      this.logMoney(data.money);
+    });
+    eventBus.on('enemy-miss', (data) => {
+      this.logEnemyMiss(data.type);
+    });
+    eventBus.on('player-damaged', (data) => {
+      this.logDamage(data.source, data.amount + data.blocked, data.amount);
+    });
+    eventBus.on('pickup-collected', (data) => {
+      this.logPickup(data.type);
+    });
+    eventBus.on('vehicle-runover', (data) => {
+      this.logVehicleRunOver();
+      this.logKill(data.type);
+    });
   }
 
   /** Add a message to the combat log */

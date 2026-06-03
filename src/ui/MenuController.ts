@@ -17,6 +17,8 @@ export class MenuController {
     private onResume: () => void,
     private onRestart: () => void,
     private onQuit: () => void,
+    private onSave: () => void,
+    private onLoad: () => void,
   ) {
     this.menuOverlay = document.getElementById('menuOverlay')!;
     this.pauseOverlay = document.getElementById('pauseOverlay')!;
@@ -45,7 +47,9 @@ export class MenuController {
     // Pause menu buttons
     for (const btn of this.pauseOverlay.querySelectorAll('.menu-btn')) {
       const text = btn.textContent?.trim();
-      if (text === 'RESUME') btn.addEventListener('click', () => this.onResume());
+      if (text === 'SAVE GAME') btn.addEventListener('click', () => this.onSave());
+      else if (text === 'LOAD GAME') btn.addEventListener('click', () => this.onLoad());
+      else if (text === 'RESUME') btn.addEventListener('click', () => this.onResume());
       else if (text === 'RESTART') btn.addEventListener('click', () => this.onRestart());
       else if (text === 'QUIT') btn.addEventListener('click', () => this.onQuit());
     }

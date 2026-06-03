@@ -65,6 +65,31 @@ canvas { display: block; }
 #pauseOverlay h1 {
   font: bold 40px monospace; color: #fff; margin-bottom: 20px;
 }
+.pause-hint {
+  font: 11px monospace; color: #555; margin-top: 14px;
+}
+
+#volumeControl {
+  display: flex; align-items: center; gap: 10px;
+  width: 260px; margin: 8px auto;
+  pointer-events: auto;
+}
+#volumeControl label {
+  font: bold 12px monospace; color: #aaa; flex-shrink: 0; width: 60px;
+}
+#volumeSlider {
+  flex: 1; height: 6px;
+  -webkit-appearance: none; appearance: none;
+  background: rgba(255,255,255,0.15); border-radius: 3px; outline: none;
+}
+#volumeSlider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #e84040; cursor: pointer; border: none;
+}
+#volumeLabel {
+  font: bold 13px monospace; color: #fff; width: 40px; text-align: right; flex-shrink: 0;
+}
 
 /* ========== Loading Screen ========== */
 #loadScreen {

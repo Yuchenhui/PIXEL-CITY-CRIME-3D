@@ -26,6 +26,7 @@
     <div id="speedArea">0 km/h</div>
     <div id="interactHint">Press E to enter vehicle</div>
     <div id="combatLog"></div>
+    <div id="volumeIndicator" style="opacity:0">Volume: 100%</div>
   </div>
 
   <!-- Main Menu -->
@@ -47,9 +48,14 @@
   <!-- Pause -->
   <div id="pauseOverlay">
     <h1>PAUSED</h1>
+    <div class="menu-btn">SAVE GAME</div>
+    <div class="menu-btn">LOAD GAME</div>
     <div class="menu-btn">RESUME</div>
+    <div id="volumeControl"><label>VOLUME</label><input type="range" id="volumeSlider" min="0" max="100" value="100"><span id="volumeLabel">100%</span></div>
+    <div class="menu-btn">RESTART</div>
     <div class="menu-btn">RESTART</div>
     <div class="menu-btn">QUIT</div>
+    <div class="pause-hint">F5 - Quick Save | F9 - Quick Load</div>
   </div>
 
   <!-- Loading Screen -->

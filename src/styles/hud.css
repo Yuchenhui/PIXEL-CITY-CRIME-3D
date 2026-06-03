@@ -130,3 +130,15 @@
   line-height: 1.4;
   text-align: right;
 }
+
+/* Volume indicator (brief popup) */
+#volumeIndicator {
+  position: absolute; left: 50%; bottom: 180px;
+  transform: translateX(-50%);
+  font: bold 18px monospace; color: #fff;
+  text-shadow: 0 1px 6px #000;
+  background: rgba(0,0,0,0.5);
+  padding: 8px 20px; border-radius: 8px;
+  transition: opacity 0.3s;
+  white-space: nowrap;
+}

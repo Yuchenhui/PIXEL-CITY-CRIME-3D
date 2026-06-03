@@ -1,5 +1,4 @@
-import * as THREE from 'three';
-import { GameStateType, GameMode, EnemyTypeName, EnemyState, SoundType, type BuildingData } from '@game/index';
+import { GameStateType, EnemyTypeName } from '@game/index';
 import { CFG } from '@config/constants';
 
 // Core
@@ -14,6 +13,7 @@ import { PlayerController } from '@systems/PlayerController';
 import { VehicleSystem } from '@systems/VehicleSystem';
 import { ShootingSystem } from '@systems/ShootingSystem';
 import { EnemyAI } from '@systems/EnemyAI';
+import { EnemyRenderer } from '@systems/EnemyRenderer';
 import { DayNightCycle } from '@systems/DayNightCycle';
 import { PickupSystem } from '@systems/PickupSystem';
 import { ParticleManager } from '@systems/ParticleManager';
@@ -29,100 +29,164 @@ import { MenuController } from '@ui/MenuController';
 import { CombatLog } from '@ui/CombatLog';
 import { WeaponShop } from '@ui/WeaponShop';
 
+// New modules
+import { GameFlowController, type GameRefs } from './GameFlowController';
+import { GameLoop } from './GameLoop';
+
 /**
- * Main Game class: holds all subsystem references, manages game lifecycle.
+ * Main Game class: thin orchestrator that creates core systems,
+ * wires UI, and delegates game flow and per-frame logic to dedicated modules.
  */
 export class Game {
-  // Core
-  private engine: Engine;
-  private input: InputManager;
-  private audio: AudioManager;
-  private physics: PhysicsManager;
-  private stateManager: StateManager;
+  private refs: GameRefs;
+  private flowController: GameFlowController;
+  private gameLoop: GameLoop;
 
-  // Systems
-  private playerController!: PlayerController;
-  private vehicleSystem!: VehicleSystem;
-  private shootingSystem!: ShootingSystem;
-  private enemyAI!: EnemyAI;
-  private dayNightCycle!: DayNightCycle;
-  private pickupSystem!: PickupSystem;
-  private particleManager!: ParticleManager;
-  private waveManager!: WaveManager;
-
-  // World
-  private worldGenerator: WorldGenerator;
-  private buildingGrid: BuildingData[] = [];
-
-  // UI
-  private hud: HUDController;
-  private minimap: MinimapRenderer;
-  private menu: MenuController;
-  private combatLog: CombatLog;
-  private weaponShop: WeaponShop;
-
-  // Internal state
-  private minimapTimer = 0;
-  private threatTimer = 0;
-  private _camDir = new THREE.Vector3();
-  private running = false;
+  // DOM refs for volume controls
+  private volumeIndicator: HTMLElement;
+  private volumeSlider: HTMLInputElement;
+  private volumeLabel: HTMLElement;
 
   constructor() {
     // Initialize core
-    this.engine = new Engine();
-    this.input = new InputManager();
-    this.audio = new AudioManager();
-    this.physics = new PhysicsManager();
-    this.stateManager = new StateManager();
-    this.worldGenerator = new WorldGenerator();
+    const engine = new Engine();
+    const input = new InputManager();
+    const audio = new AudioManager();
+    const physics = new PhysicsManager();
+    const stateManager = new StateManager();
+    const worldGenerator = new WorldGenerator();
 
     // Initialize UI
-    this.hud = new HUDController();
-    this.minimap = new MinimapRenderer(document.getElementById('minimap') as HTMLCanvasElement);
-    this.combatLog = new CombatLog();
-    this.weaponShop = new WeaponShop(this.stateManager, this.combatLog);
-    this.menu = new MenuController(
-      (mode) => this.startGame(mode),
-      () => this.resumeGame(),
-      () => this.restartGame(),
-      () => this.backToMenu(),
+    const hud = new HUDController();
+    const minimap = new MinimapRenderer(document.getElementById('minimap') as HTMLCanvasElement);
+    const combatLog = new CombatLog();
+    const weaponShop = new WeaponShop(stateManager, combatLog);
+
+    // Volume indicator DOM refs
+    this.volumeIndicator = document.getElementById('volumeIndicator')!;
+    this.volumeSlider = document.getElementById('volumeSlider') as HTMLInputElement;
+    this.volumeLabel = document.getElementById('volumeLabel')!;
+
+    // Create shared mutable refs container (systems populated by initSystems)
+    this.refs = {
+      engine, input, audio, physics, stateManager, worldGenerator,
+      buildingGrid: [],
+      particleManager: null!,
+      pickupSystem: null!,
+      enemyAI: null!,
+      shootingSystem: null!,
+      vehicleSystem: null!,
+      playerController: null!,
+      dayNightCycle: null!,
+      waveManager: null!,
+      hud, minimap, menu: null!, combatLog, weaponShop,
+      initSystems: () => this.initSystems(),
+    };
+
+    // Create controllers
+    this.flowController = new GameFlowController(this.refs, this.volumeSlider, this.volumeLabel);
+    this.gameLoop = new GameLoop(this.refs, this.volumeIndicator, () => this.flowController.triggerGameOver());
+
+    // Menu with callbacks routed to flow controller
+    const menu = new MenuController(
+      (mode) => this.flowController.startGame(mode),
+      () => this.flowController.resumeGame(),
+      () => this.flowController.restartGame(),
+      () => this.flowController.backToMenu(),
+      () => this.flowController.saveGame(),
+      () => this.flowController.loadGame(),
     );
+    this.refs.menu = menu;
 
     // Enable input
-    this.input.enable(this.engine.renderer.domElement);
+    input.enable(engine.renderer.domElement);
+
+    // Pause menu volume slider
+    this.volumeSlider.addEventListener('input', () => {
+      const vol = parseInt(this.volumeSlider.value) / 100;
+      audio.setVolume(vol);
+      const ms = stateManager.getMutableState();
+      ms.volume = vol;
+      ms.muted = false;
+      audio.setMuted(false);
+      this.volumeLabel.textContent = `${Math.round(vol * 100)}%`;
+    });
 
     // Handle pointer lock change for click prompt
     document.addEventListener('pointerlockchange', () => {
-      const s = this.stateManager.getState();
-      if (s.state === GameStateType.Playing && !this.input.isPointerLocked) {
-        this.menu.showClickPrompt();
+      const s = stateManager.getState();
+      if (s.state === GameStateType.Playing && !input.isPointerLocked) {
+        menu.showClickPrompt();
       } else {
-        this.menu.hideClickPrompt();
+        menu.hideClickPrompt();
       }
     });
 
-    // Handle Escape key for pause, B for weapon shop
+    // Handle Escape key for pause, B for weapon shop, volume/save/load shortcuts
     document.addEventListener('keydown', (e) => {
-      const s = this.stateManager.getState().state;
+      const s = stateManager.getState().state;
       if (e.code === 'Escape') {
-        if (this.weaponShop.openState) {
-          this.weaponShop.close();
-          this.input.requestPointerLock();
+        if (weaponShop.openState) {
+          weaponShop.close();
+          input.requestPointerLock();
           document.body.classList.add('playing');
         } else if (s === GameStateType.Playing) {
-          this.pauseGame();
+          this.flowController.pauseGame();
         }
       }
       if (e.code === 'KeyB' && s === GameStateType.Playing) {
-        if (this.weaponShop.openState) {
-          this.weaponShop.close();
-          this.input.requestPointerLock();
+        if (weaponShop.openState) {
+          weaponShop.close();
+          input.requestPointerLock();
           document.body.classList.add('playing');
         } else {
-          this.weaponShop.open();
-          this.input.exitPointerLock();
+          weaponShop.open();
+          input.exitPointerLock();
           document.body.classList.remove('playing');
         }
+      }
+      // F5 = Quick Save, F9 = Quick Load (only while playing or paused)
+      if (e.code === 'F5' && (s === GameStateType.Playing || s === GameStateType.Paused)) {
+        e.preventDefault();
+        this.flowController.saveGame();
+      }
+      if (e.code === 'F9' && (s === GameStateType.Playing || s === GameStateType.Paused)) {
+        e.preventDefault();
+        this.flowController.loadGame();
+      }
+
+      // M = Toggle mute (only while playing)
+      if (e.code === 'KeyM' && s === GameStateType.Playing) {
+        const ms = stateManager.getMutableState();
+        ms.muted = !ms.muted;
+        audio.setMuted(ms.muted);
+        this.gameLoop.showVolumeIndicator(ms.muted ? 'MUTED' : `Volume: ${Math.round(ms.volume * 100)}%`);
+      }
+
+      // N = Cycle minimap zoom (only while playing)
+      if (e.code === 'KeyN' && s === GameStateType.Playing) {
+        const ms = stateManager.getMutableState();
+        const zoomLevels = [0.5, 1, 2];
+        const idx = zoomLevels.indexOf(ms.minimapZoom);
+        ms.minimapZoom = zoomLevels[(idx + 1) % zoomLevels.length];
+      }
+
+      // +/= = Volume up, -/_ = Volume down (while playing or paused)
+      if ((e.code === 'Equal' || e.code === 'NumpadAdd') && (s === GameStateType.Playing || s === GameStateType.Paused)) {
+        const ms = stateManager.getMutableState();
+        ms.muted = false;
+        audio.setMuted(false);
+        ms.volume = Math.min(1, ms.volume + 0.1);
+        audio.setVolume(ms.volume);
+        this.gameLoop.showVolumeIndicator(`Volume: ${Math.round(ms.volume * 100)}%`);
+      }
+      if ((e.code === 'Minus' || e.code === 'NumpadSubtract') && (s === GameStateType.Playing || s === GameStateType.Paused)) {
+        const ms = stateManager.getMutableState();
+        ms.muted = false;
+        audio.setMuted(false);
+        ms.volume = Math.max(0, ms.volume - 0.1);
+        audio.setVolume(ms.volume);
+        this.gameLoop.showVolumeIndicator(`Volume: ${Math.round(ms.volume * 100)}%`);
       }
     });
   }
@@ -130,313 +194,51 @@ export class Game {
   /** Initialize the game world and start the loop */
   init(): void {
     // Generate initial world for menu background
-    this.buildingGrid = this.worldGenerator.generate(this.engine.worldGroup);
-    this.physics.addGroundPlane();
-    this.physics.buildFromBuildingGrid(this.buildingGrid);
+    this.refs.buildingGrid = this.refs.worldGenerator.generate(this.refs.engine.worldGroup);
+    this.refs.physics.addGroundPlane();
+    this.refs.physics.buildFromBuildingGrid(this.refs.buildingGrid);
 
     // Init systems that depend on the world
     this.initSystems();
 
     // Spawn initial enemies for menu
-    this.enemyAI.spawnEnemies(10, [EnemyTypeName.Civilian, EnemyTypeName.Gang], 0, 0);
+    this.refs.enemyAI.spawnEnemies(10, [EnemyTypeName.Civilian, EnemyTypeName.Gang], 0, 0);
 
     // Position camera for menu
-    this.engine.camera.position.set(0, 20, 30);
-    this.engine.camera.rotation.x = -0.3;
+    this.refs.engine.camera.position.set(0, 20, 30);
+    this.refs.engine.camera.rotation.x = -0.3;
 
     // Show menu
-    this.menu.showMainMenu();
-    this.hud.hide();
+    this.refs.menu.showMainMenu();
+    this.refs.hud.hide();
 
     // Start game loop
-    this.running = true;
-    this.gameLoop();
+    this.gameLoop.start();
   }
 
+  /** Create all game systems and populate refs */
   private initSystems(): void {
-    this.particleManager = new ParticleManager(this.engine.scene);
-    this.pickupSystem = new PickupSystem(this.engine.scene, this.audio, this.stateManager, this.combatLog);
-
-    this.enemyAI = new EnemyAI(
-      this.engine.enemyGroup,
-      this.engine.scene,
-      this.audio,
-      this.stateManager,
-      this.particleManager,
-      this.pickupSystem,
-      this.physics,
-      this.combatLog,
+    const r = this.refs;
+    r.particleManager = new ParticleManager(r.engine.scene);
+    r.pickupSystem = new PickupSystem(r.engine.scene, r.audio, r.stateManager, r.combatLog);
+    const enemyRenderer = new EnemyRenderer(r.engine.scene);
+    r.enemyAI = new EnemyAI(
+      r.engine.enemyGroup, enemyRenderer, r.audio, r.stateManager,
+      r.particleManager, r.pickupSystem, r.physics, r.combatLog,
     );
-
-    this.shootingSystem = new ShootingSystem(
-      this.engine.camera,
-      this.engine.scene,
-      this.audio,
-      this.stateManager,
-      this.particleManager,
-      this.enemyAI,
+    r.shootingSystem = new ShootingSystem(
+      r.engine.camera, r.engine.scene, r.audio, r.stateManager,
+      r.particleManager, r.enemyAI,
     );
-
-    this.vehicleSystem = new VehicleSystem(
-      this.engine.vehicleGroup,
-      this.engine.camera,
-      this.audio,
-      this.stateManager,
-      this.physics,
-      this.particleManager,
-      this.enemyAI,
-      this.combatLog,
-      this.input,
+    r.vehicleSystem = new VehicleSystem(
+      r.engine.vehicleGroup, r.engine.camera, r.audio, r.stateManager,
+      r.physics, r.particleManager, r.enemyAI, r.combatLog, r.input,
     );
-
-    this.playerController = new PlayerController(
-      this.engine.camera,
-      this.input,
-      this.stateManager,
-      this.physics,
-      this.audio,
-      this.vehicleSystem,
-      this.shootingSystem,
-      this.combatLog,
+    r.playerController = new PlayerController(
+      r.engine.camera, r.input, r.stateManager, r.physics,
+      r.audio, r.vehicleSystem, r.shootingSystem, r.combatLog,
     );
-
-    this.dayNightCycle = new DayNightCycle(this.engine, this.stateManager);
-    this.waveManager = new WaveManager(this.stateManager, this.enemyAI);
+    r.dayNightCycle = new DayNightCycle(r.engine, r.stateManager);
+    r.waveManager = new WaveManager(r.stateManager, r.enemyAI);
   }
-
-  /** Start a new game */
-  private startGame(mode: string): void {
-    this.audio.init();
-
-    const gameMode = mode === 'survival' ? GameMode.Survival : GameMode.FreeRoam;
-    this.stateManager.resetForNewGame(gameMode);
-
-    // Clear existing world
-    this.engine.clearGroups();
-    this.enemyAI.clear();
-    this.vehicleSystem.clear();
-    this.particleManager.clear();
-    this.pickupSystem.clear();
-    this.worldGenerator.dispose();
-    this.physics.clearBuildings();
-
-    // Generate fresh world
-    this.worldGenerator = new WorldGenerator();
-    this.buildingGrid = this.worldGenerator.generate(this.engine.worldGroup);
-    this.physics.buildFromBuildingGrid(this.buildingGrid);
-
-    // Re-init systems with new world data
-    this.initSystems();
-
-    // Reset camera
-    this.engine.camera.position.set(0, CFG.PLAYER_H, 5);
-    this.engine.camera.rotation.set(0, 0, 0);
-    this.engine.camera.fov = 75;
-    this.engine.camera.updateProjectionMatrix();
-
-    // Spawn initial entities
-    this.vehicleSystem.spawnVehicles(CFG.VEHICLE_COUNT);
-    if (gameMode === GameMode.Survival) {
-      const s = this.stateManager.getMutableState();
-      s.wave = 1;
-      this.enemyAI.spawnEnemies(CFG.INITIAL_SURVIVAL_ENEMIES, [EnemyTypeName.Gang, EnemyTypeName.Civilian], 0, 5);
-    } else {
-      this.enemyAI.spawnEnemies(
-        CFG.INITIAL_FREEROAM_ENEMIES,
-        [EnemyTypeName.Civilian, EnemyTypeName.Civilian, EnemyTypeName.Gang, EnemyTypeName.Gang],
-        0, 5,
-      );
-    }
-
-    // Show HUD, hide menus
-    this.menu.hideAll();
-    this.hud.show();
-    this.combatLog.show();
-    document.body.classList.add('playing');
-
-    // Request pointer lock
-    this.input.requestPointerLock();
-  }
-
-  private pauseGame(): void {
-    this.stateManager.set('state', GameStateType.Paused);
-    this.menu.showPause();
-    this.input.exitPointerLock();
-    document.body.classList.remove('playing');
-  }
-
-  private resumeGame(): void {
-    this.stateManager.set('state', GameStateType.Playing);
-    this.menu.hidePause();
-    this.input.requestPointerLock();
-    document.body.classList.add('playing');
-  }
-
-  private restartGame(): void {
-    this.menu.hidePause();
-    this.startGame(this.stateManager.getState().mode);
-  }
-
-  private backToMenu(): void {
-    this.stateManager.set('state', GameStateType.Menu);
-    this.menu.hideAll();
-    this.hud.hide();
-    this.combatLog.hide();
-    this.menu.showMainMenu();
-    this.input.exitPointerLock();
-    document.body.classList.remove('playing');
-
-    // Reset camera for menu
-    this.engine.camera.position.set(0, 20, 30);
-    this.engine.camera.rotation.set(-0.3, 0, 0);
-  }
-
-  /** Scan for nearby threats and report to combat log */
-  private scanThreats(): void {
-    const px = this.engine.camera.position.x;
-    const pz = this.engine.camera.position.z;
-    const enemies = this.enemyAI.getEnemies();
-
-    // Get camera forward direction
-    this.engine.camera.getWorldDirection(this._camDir);
-    const forwardAngle = Math.atan2(this._camDir.x, this._camDir.z);
-
-    let front = 0, back = 0, left = 0, right = 0;
-    const scanRange = 40;
-
-    for (const e of enemies) {
-      if (e.dead) continue;
-      const dx = e.x - px;
-      const dz = e.z - pz;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      if (dist > scanRange) continue;
-
-      // Check if enemy is attacking or chasing
-      if (e.state !== EnemyState.Attack && e.state !== EnemyState.Chase) continue;
-
-      const enemyAngle = Math.atan2(dx, dz);
-      let rel = enemyAngle - forwardAngle;
-      // Normalize to [-PI, PI]
-      while (rel > Math.PI) rel -= Math.PI * 2;
-      while (rel < -Math.PI) rel += Math.PI * 2;
-
-      if (Math.abs(rel) < Math.PI / 4) front++;
-      else if (Math.abs(rel) > Math.PI * 3 / 4) back++;
-      else if (rel > 0) right++;
-      else left++;
-    }
-
-    const dirs: [string, number][] = [
-      ['前方', front], ['后方', back], ['左侧', left], ['右侧', right],
-    ];
-    for (const [dir, count] of dirs) {
-      if (count > 0) this.combatLog.logThreat(dir, count);
-    }
-  }
-
-  private triggerGameOver(): void {
-    this.stateManager.set('state', GameStateType.GameOver);
-    this.input.exitPointerLock();
-    document.body.classList.remove('playing');
-
-    const s = this.stateManager.getState();
-    const accuracy = s.totalShots > 0 ? Math.round(s.hits / s.totalShots * 100) : 0;
-    this.menu.showGameOver({
-      score: s.score,
-      kills: s.kills,
-      time: s.time,
-      accuracy,
-      maxWanted: s.maxWanted,
-      wave: s.mode === GameMode.Survival ? s.wave : undefined,
-    });
-  }
-
-  /** Main game loop */
-  private gameLoop = (): void => {
-    if (!this.running) return;
-    requestAnimationFrame(this.gameLoop);
-
-    const dt = this.engine.getDelta();
-    const s = this.stateManager.getMutableState();
-
-    if (s.state === GameStateType.Playing && !this.weaponShop.openState) {
-      s.time += dt;
-
-      // Combo decay
-      if (s.comboTimer > 0) {
-        s.comboTimer -= dt;
-        if (s.comboTimer <= 0) s.combo = 0;
-      }
-
-      // Wanted decay
-      if (s.wanted > 0) {
-        s.wantedTimer -= dt;
-        if (s.wantedTimer <= 0) {
-          s.wanted = Math.max(0, s.wanted - 1);
-          s.wantedTimer = 15;
-        }
-      }
-
-      // Wave management
-      this.waveManager.update(dt, this.engine.camera.position.x, this.engine.camera.position.z);
-
-      // Update all systems
-      this.playerController.update(dt);
-      this.enemyAI.update(
-        dt,
-        this.engine.camera.position.x,
-        this.engine.camera.position.z,
-        (dmg, type) => this.playerController.takeDamage(dmg, type),
-      );
-      this.pickupSystem.update(dt, this.engine.camera.position.x, this.engine.camera.position.z);
-      this.particleManager.update(dt);
-      this.dayNightCycle.update(dt);
-
-      // Threat scan (every 2 seconds)
-      this.threatTimer += dt;
-      if (this.threatTimer >= 2) {
-        this.threatTimer = 0;
-        this.scanThreats();
-      }
-
-      // Update combat log fade
-      this.combatLog.update();
-
-      // Check death
-      if (s.hp <= 0) {
-        this.triggerGameOver();
-      }
-
-      // Update HUD
-      const vehicleSpeed = s.inVehicle !== null
-        ? this.vehicleSystem.getVehicles()[s.inVehicle]?.speed ?? null
-        : null;
-      const nearVehicle = s.inVehicle === null
-        ? this.vehicleSystem.isNearVehicle(this.engine.camera.position.x, this.engine.camera.position.z)
-        : false;
-      this.hud.update(this.stateManager, vehicleSpeed, nearVehicle);
-
-      // Minimap (throttled)
-      this.minimapTimer += dt;
-      if (this.minimapTimer >= 0.5) {
-        this.minimapTimer = 0;
-        this.minimap.render(
-          this.buildingGrid,
-          this.engine.camera.position.x,
-          this.engine.camera.position.z,
-          this.enemyAI.getEnemies(),
-          this.vehicleSystem.getVehicles(),
-        );
-      }
-    } else if (s.state === GameStateType.Menu) {
-      // Slow camera pan for menu background
-      this.engine.camera.position.x += dt * 2;
-      this.engine.camera.position.y = 20;
-      this.engine.camera.position.z += dt;
-      this.engine.camera.rotation.x = -0.3;
-      this.dayNightCycle.update(dt);
-    }
-
-    this.engine.render();
-  };
 }

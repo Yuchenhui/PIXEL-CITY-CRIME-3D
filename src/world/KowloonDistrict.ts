@@ -58,6 +58,7 @@ const BRIDGE_CHANCE = 0.25;
 export class KowloonDistrict {
   private meshes: THREE.Mesh[] = [];
   private bridges: THREE.Mesh[] = [];
+  private lights: THREE.Light[] = [];
 
   /**
    * Generate Kowloon buildings into the given group.
@@ -144,6 +145,9 @@ export class KowloonDistrict {
 
     // Generate dark ceiling planes to create "underground" feel at ground level
     this.createCeilingShadows(group, cx, cz, r);
+
+    // Create entrance archway with Kowloon signage
+    this.createEntranceArch(group);
 
     return buildingGrid;
   }
@@ -271,6 +275,86 @@ export class KowloonDistrict {
     }
   }
 
+  /**
+   * 创建九龙城寨入口拱门和招牌
+   * 模拟城寨入口的标志性外观
+   */
+  private createEntranceArch(group: THREE.Group): void {
+    // 入口位置
+    const entranceX = 0;
+    const entranceZ = 75;
+
+    // 拱门支柱
+    const pillarGeo = new THREE.BoxGeometry(1, 1, 1);
+    const pillarMat = new THREE.MeshLambertMaterial({ color: 0x3a3530 });
+
+    // 左支柱
+    const leftPillar = new THREE.Mesh(pillarGeo, pillarMat);
+    leftPillar.position.set(entranceX - 8, 10, entranceZ);
+    leftPillar.scale.set(1.5, 20, 1.5);
+    leftPillar.castShadow = true;
+    group.add(leftPillar);
+    this.meshes.push(leftPillar);
+
+    // 右支柱
+    const rightPillar = new THREE.Mesh(pillarGeo, pillarMat);
+    rightPillar.position.set(entranceX + 8, 10, entranceZ);
+    rightPillar.scale.set(1.5, 20, 1.5);
+    rightPillar.castShadow = true;
+    group.add(rightPillar);
+    this.meshes.push(rightPillar);
+
+    // 横梁
+    const beamGeo = new THREE.BoxGeometry(1, 1, 1);
+    const beamMat = new THREE.MeshLambertMaterial({ color: 0x4a4540 });
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(entranceX, 20, entranceZ);
+    beam.scale.set(18, 2, 2);
+    beam.castShadow = true;
+    group.add(beam);
+    this.meshes.push(beam);
+
+    // 招牌 - "九龙城寨" 四个字用发光材质
+    const signGeo = new THREE.BoxGeometry(1, 1, 1);
+    const signMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    const sign = new THREE.Mesh(signGeo, signMat);
+    sign.position.set(entranceX, 22, entranceZ);
+    sign.scale.set(10, 2, 0.3);
+    group.add(sign);
+    this.meshes.push(sign);
+
+    // 霓虹灯光
+    const neonLight = new THREE.PointLight(0xffaa00, 1.5, 25);
+    neonLight.position.set(entranceX, 22, entranceZ + 2);
+    group.add(neonLight);
+    this.lights?.push(neonLight);
+
+    // 左右小霓虹灯
+    const leftNeon = new THREE.PointLight(0xff6600, 0.8, 15);
+    leftNeon.position.set(entranceX - 6, 15, entranceZ + 1);
+    group.add(leftNeon);
+    this.lights?.push(leftNeon);
+
+    const rightNeon = new THREE.PointLight(0xff6600, 0.8, 15);
+    rightNeon.position.set(entranceX + 6, 15, entranceZ + 1);
+    group.add(rightNeon);
+    this.lights?.push(rightNeon);
+
+    // 地面入口标记
+    const groundMarkGeo = new THREE.PlaneGeometry(16, 3);
+    const groundMarkMat = new THREE.MeshBasicMaterial({
+      color: 0x333333,
+      transparent: true,
+      opacity: 0.8,
+    });
+    const groundMark = new THREE.Mesh(groundMarkGeo, groundMarkMat);
+    groundMark.position.set(entranceX, 0.05, entranceZ);
+    groundMark.rotation.x = -Math.PI / 2;
+    group.add(groundMark);
+    this.meshes.push(groundMark);
+  }
+
+
   /** Dispose all Kowloon meshes */
   dispose(): void {
     for (const m of this.meshes) {
@@ -278,6 +362,8 @@ export class KowloonDistrict {
       if (m.material instanceof THREE.Material) m.material.dispose();
     }
     this.meshes = [];
+    this.bridges = [];
+    this.lights = [];
     this.bridges = [];
   }
 }

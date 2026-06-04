@@ -424,6 +424,100 @@ export class KowloonOptimizer {
   }
 
   /**
+   * 批量添加水滴实例
+   */
+  addWaterDripInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const dropGeo = new THREE.SphereGeometry(0.05, 4, 4);
+    const dropMat = new THREE.MeshBasicMaterial({ color: 0x4488aa, transparent: true, opacity: 0.6 });
+    this.getOrCreateInstancedMesh('waterDrop', dropGeo, dropMat, 3000);
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const dripCount = randomInt(1, 3);
+      for (let i = 0; i < dripCount; i++) {
+        const side = randomInt(0, 3);
+        let dropX = b.x;
+        let dropZ = b.z;
+        if (side === 0) dropZ = b.z + b.hd;
+        else if (side === 1) dropZ = b.z - b.hd;
+        else if (side === 2) dropX = b.x + b.hw;
+        else dropX = b.x - b.hw;
+
+        for (let j = 0; j < 3; j++) {
+          this.addInstance(
+            'waterDrop',
+            dropGeo,
+            new THREE.Vector3(
+              dropX + randomRange(-0.2, 0.2),
+              randomRange(0.5, 3),
+              dropZ + randomRange(-0.2, 0.2)
+            ),
+            undefined,
+            undefined,
+            3000
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * 批量添加水渍实例
+   */
+  addPuddleInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const puddleGeo = new THREE.CircleGeometry(0.3, 8);
+    const puddleMat = new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.5 });
+    this.getOrCreateInstancedMesh('puddle', puddleGeo, puddleMat, 1000);
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const dripCount = randomInt(1, 3);
+      for (let i = 0; i < dripCount; i++) {
+        const side = randomInt(0, 3);
+        let dropX = b.x;
+        let dropZ = b.z;
+        if (side === 0) dropZ = b.z + b.hd;
+        else if (side === 1) dropZ = b.z - b.hd;
+        else if (side === 2) dropX = b.x + b.hw;
+        else dropX = b.x - b.hw;
+
+        this.addInstance(
+          'puddle',
+          puddleGeo,
+          new THREE.Vector3(
+            dropX + randomRange(-0.5, 0.5),
+            0.02,
+            dropZ + randomRange(-0.5, 0.5)
+          ),
+          new THREE.Euler(-Math.PI / 2, Math.random() * Math.PI, 0),
+          undefined,
+          1000
+        );
+      }
+    }
+  }
+
+  /**
+
+  /**
 
   /**
    * 将所有 InstancedMesh 添加到场景

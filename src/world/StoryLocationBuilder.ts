@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { CFG } from '@config/constants';
 import type { BuildingData } from '@game/index';
 import { STORY_LOCATIONS, type StoryLocation } from './StoryLocations';
+import { createKowloonMaterial } from './TextureManager';
 
 /** Shared box geometry for all story buildings */
 const BOX_GEO = new THREE.BoxGeometry(1, 1, 1);
@@ -65,7 +66,7 @@ export class StoryLocationBuilder {
     const style = STYLES[loc.type] ?? STYLES.hq;
 
     // Main building
-    const mainMat = new THREE.MeshLambertMaterial({ color: style.color });
+    const mainMat = createKowloonMaterial('concrete', style.color);
     const mainMesh = new THREE.Mesh(BOX_GEO, mainMat);
     mainMesh.position.set(loc.x, style.h / 2, loc.z);
     mainMesh.scale.set(style.w, style.h, style.d);

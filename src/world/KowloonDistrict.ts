@@ -15,6 +15,7 @@ import { CFG } from '@config/constants';
 import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
+import { getRandomBuildingMaterial, createKowloonMaterial } from './TextureManager';
 
 // ========== Kowloon-specific constants ==========
 
@@ -107,7 +108,7 @@ export class KowloonDistrict {
           const pz = worldZ + oz;
 
           const color = new THREE.Color(randomPick(KOWLOON_COLORS));
-          const mat = new THREE.MeshLambertMaterial({ color });
+          const mat = getRandomBuildingMaterial();
 
           // Main body
           const mesh = new THREE.Mesh(buildGeo, mat);

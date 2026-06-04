@@ -81,9 +81,6 @@ export class KowloonDistrict {
 
     // 第七步：氛围效果（仅滴水、积水、污渍 - 海报涂鸦杂物由 KowloonOptimizer 用 InstancedMesh 处理）
     this.atmosphere.generate(group, buildings, true);
-    this.atmosphere.generate(group, buildings);
-
-    // 第八步：性能优化（InstancedMesh）
     this.optimizer.addPosterInstances(group, buildings, cx, cz, r);
     this.optimizer.addGraffitiInstances(group, buildings, cx, cz, r);
     this.optimizer.addClutterInstances(group, cx, cz, r);
@@ -94,7 +91,6 @@ export class KowloonDistrict {
 
     return buildingGrid;
   }
-
 
   /**
    * 第一步：生成核心建筑群

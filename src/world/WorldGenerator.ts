@@ -7,6 +7,7 @@ import { VegetationSystem } from './VegetationSystem';
 import { WaterSystem } from './WaterSystem';
 import { KowloonDistrict } from './KowloonDistrict';
 import { StoryLocationBuilder } from './StoryLocationBuilder';
+import { KowloonDetails } from './KowloonDetails';
 import { STORY_LOCATIONS, KOWLOON_CLEARANCE, STORY_LOCATION_CLEARANCE } from './StoryLocations';
 
 /**
@@ -19,6 +20,7 @@ export class WorldGenerator {
   private waterSystem = new WaterSystem();
   private kowloonDistrict: KowloonDistrict | null = null;
   private storyLocationBuilder: StoryLocationBuilder | null = null;
+  private kowloonDetails: KowloonDetails | null = null;
   /** Generate the full world into the given group. Returns building collision data. */
   generate(worldGroup: THREE.Group, storyMode = false): BuildingData[] {
     // Ground plane — lowered below roads and pushed back via polygon offset to prevent Z-fighting
@@ -79,6 +81,10 @@ export class WorldGenerator {
     this.storyLocationBuilder = new StoryLocationBuilder();
     buildings.push(...this.storyLocationBuilder.generate(worldGroup));
 
+    // Details: wires, garbage, neon signs, fluorescent lights, rats, pipes, laundry
+    this.kowloonDetails = new KowloonDetails();
+    this.kowloonDetails.generate(worldGroup, buildings);
+
     return buildings;
   }
 
@@ -116,5 +122,6 @@ export class WorldGenerator {
     this.waterSystem.dispose();
     this.kowloonDistrict?.dispose();
     this.storyLocationBuilder?.dispose();
+    this.kowloonDetails?.dispose();
   }
 }

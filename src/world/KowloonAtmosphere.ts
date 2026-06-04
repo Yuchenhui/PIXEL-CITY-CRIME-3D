@@ -11,23 +11,33 @@ import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
 import { getWoodMaterial, getCardboardMaterial } from './TextureManager';
+import { KowloonOptimizer } from './KowloonOptimizer';
 
 /**
  * 城寨氛围效果管理器
  */
 export class KowloonAtmosphere {
   private meshes: THREE.Mesh[] = [];
+  private optimizer: KowloonOptimizer = new KowloonOptimizer();
 
   /**
    * 生成所有氛围效果
    * @param skipInstancedItems - 跳过海报、涂鸦、杂物（改由 KowloonOptimizer 用 InstancedMesh 处理）
    */
   generate(group: THREE.Group, buildings: BuildingData[], skipInstancedItems: boolean = false): void {
+    const cx = KOWLOON_CENTRE_X;
+    const cz = KOWLOON_CENTRE_Z;
+    const r = KOWLOON_RADIUS;
+
     if (!skipInstancedItems) {
       this.generateWallPosters(group, buildings);
       this.generateStreetClutter(group, buildings);
     }
-    this.generateDrippingWater(group, buildings);
+
+    // 使用 InstancedMesh 优化滴水和水渍
+    this.optimizer.addWaterDripInstances(group, buildings, cx, cz, r);
+    this.optimizer.addPuddleInstances(group, buildings, cx, cz, r);
+    this.optimizer.addToScene(group);
   }
 
   /**
@@ -123,99 +133,10 @@ export class KowloonAtmosphere {
 
   /**
    * 生成潮湿滴水效果（水管滴水、墙角渗水）
-   * 城寨特色：到处潮湿、滴水
+   * 水滴和水渍已移至 KowloonOptimizer 使用 InstancedMesh
    */
-  private generateDrippingWater(group: THREE.Group, buildings: BuildingData[]): void {
-    const cx = KOWLOON_CENTRE_X;
-    const cz = KOWLOON_CENTRE_Z;
-    const r = KOWLOON_RADIUS;
-
-    // 水滴（小球体）
-    const dropGeo = new THREE.SphereGeometry(0.05, 4, 4);
-    const dropMat = new THREE.MeshBasicMaterial({
-      color: 0x4488aa,
-      transparent: true,
-      opacity: 0.6,
-    });
-
-    // 水渍（地面上的深色斑块）
-    const puddleGeo = new THREE.CircleGeometry(0.3, 8);
-    const puddleMat = new THREE.MeshBasicMaterial({
-      color: 0x222222,
-      transparent: true,
-      opacity: 0.5,
-    });
-
-    for (const b of buildings) {
-      const dx = b.x - cx;
-      const dz = b.z - cz;
-      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
-
-      // 水管滴水点（每栋建筑 1-3 处）
-      const dripCount = randomInt(1, 3);
-      for (let i = 0; i < dripCount; i++) {
-        // 滴水位置（墙角、管道下方）
-        const side = randomInt(0, 3);
-        let dropX = b.x;
-        let dropZ = b.z;
-        if (side === 0) dropZ = b.z + b.hd;
-        else if (side === 1) dropZ = b.z - b.hd;
-        else if (side === 2) dropX = b.x + b.hw;
-        else dropX = b.x - b.hw;
-
-        // 水滴（多个，模拟滴水）
-        for (let j = 0; j < 3; j++) {
-          const drop = new THREE.Mesh(dropGeo, dropMat);
-          drop.position.set(
-            dropX + randomRange(-0.2, 0.2),
-            randomRange(0.5, 3),
-            dropZ + randomRange(-0.2, 0.2)
-          );
-          group.add(drop);
-          this.meshes.push(drop);
-        }
-
-        // 地面水渍
-        const puddle = new THREE.Mesh(puddleGeo, puddleMat);
-        puddle.position.set(
-          dropX + randomRange(-0.5, 0.5),
-          0.02,
-          dropZ + randomRange(-0.5, 0.5)
-        );
-        puddle.rotation.x = -Math.PI / 2;
-        puddle.rotation.z = Math.random() * Math.PI;
-        group.add(puddle);
-        this.meshes.push(puddle);
-      }
-
-      // 墙面渗水痕迹
-      if (Math.random() < 0.3) {
-        const stainGeo = new THREE.PlaneGeometry(
-          randomRange(0.5, 1.5),
-          randomRange(1, 3)
-        );
-        const stainMat = new THREE.MeshBasicMaterial({
-          color: 0x111111,
-          transparent: true,
-          opacity: 0.3,
-        });
-        const stain = new THREE.Mesh(stainGeo, stainMat);
-
-        const side = randomInt(0, 3);
-        let sx = b.x;
-        let sz = b.z;
-        let sRotY = 0;
-        if (side === 0) { sz = b.z + b.hd + 0.04; sRotY = 0; }
-        else if (side === 1) { sz = b.z - b.hd - 0.04; sRotY = Math.PI; }
-        else if (side === 2) { sx = b.x + b.hw + 0.04; sRotY = Math.PI / 2; }
-        else { sx = b.x - b.hw - 0.04; sRotY = -Math.PI / 2; }
-
-        stain.position.set(sx, randomRange(0.5, 2), sz);
-        stain.rotation.y = sRotY;
-        group.add(stain);
-        this.meshes.push(stain);
-      }
-    }
+  private generateDrippingWater(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 水滴和水渍已移至 KowloonOptimizer.addWaterDripInstances() 和 addPuddleInstances()
   }
 
   /**
@@ -318,5 +239,6 @@ export class KowloonAtmosphere {
       if (m.material instanceof THREE.Material) m.material.dispose();
     }
     this.meshes = [];
+    this.optimizer.dispose();
   }
 }

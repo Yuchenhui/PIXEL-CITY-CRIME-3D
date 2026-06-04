@@ -21,6 +21,7 @@ export class WorldGenerator {
   private kowloonDistrict: KowloonDistrict | null = null;
   private storyLocationBuilder: StoryLocationBuilder | null = null;
   private kowloonDetails: KowloonDetails | null = null;
+
   /** Generate the full world into the given group. Returns building collision data. */
   generate(worldGroup: THREE.Group, storyMode = false): BuildingData[] {
     // Ground plane — lowered below roads and pushed back via polygon offset to prevent Z-fighting
@@ -64,6 +65,11 @@ export class WorldGenerator {
   /** Get building collision grid */
   getBuildingGrid(): BuildingData[] {
     return this.buildingSystem.getBuildingGrid();
+  }
+
+  /** Update Kowloon details (e.g. rat animation) */
+  update(): void {
+    this.kowloonDetails?.update();
   }
 
   /**

@@ -103,6 +103,9 @@ export class GameLoop {
 
       r.particleManager.update(dt);
       r.dayNightCycle.update(dt);
+      // Update Kowloon details (rat animation etc.)
+      r.worldGenerator?.update();
+      r.dayNightCycle.update(dt);
 
       // Threat scan (every 2 seconds)
       this.threatTimer += dt;

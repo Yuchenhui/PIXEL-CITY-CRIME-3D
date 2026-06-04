@@ -14,7 +14,7 @@ import { CFG } from '@config/constants';
 import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
-import { getRandomBuildingMaterial } from './TextureManager';
+import { getRandomBuildingMaterial, createKowloonMaterial } from './TextureManager';
 
 // ========== Kowloon-specific constants ==========
 
@@ -284,9 +284,13 @@ export class KowloonDistrict {
     const entranceX = 0;
     const entranceZ = 75;
 
+    // 纹理材质
+    const pillarMat = createKowloonMaterial('concrete', 0x5a5550, 2);
+    const beamMat = createKowloonMaterial('concrete', 0x6a6560, 2);
+    const signMat = createKowloonMaterial('metal', 0xffcc00, 1);
+
     // 拱门支柱
     const pillarGeo = new THREE.BoxGeometry(1, 1, 1);
-    const pillarMat = new THREE.MeshLambertMaterial({ color: 0x3a3530 });
 
     // 左支柱
     const leftPillar = new THREE.Mesh(pillarGeo, pillarMat);
@@ -306,7 +310,6 @@ export class KowloonDistrict {
 
     // 横梁
     const beamGeo = new THREE.BoxGeometry(1, 1, 1);
-    const beamMat = new THREE.MeshLambertMaterial({ color: 0x4a4540 });
     const beam = new THREE.Mesh(beamGeo, beamMat);
     beam.position.set(entranceX, 20, entranceZ);
     beam.scale.set(18, 2, 2);
@@ -314,9 +317,8 @@ export class KowloonDistrict {
     group.add(beam);
     this.meshes.push(beam);
 
-    // 招牌 - "九龙城寨" 四个字用发光材质
+    // 招牌 - 金属质感
     const signGeo = new THREE.BoxGeometry(1, 1, 1);
-    const signMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
     const sign = new THREE.Mesh(signGeo, signMat);
     sign.position.set(entranceX, 22, entranceZ);
     sign.scale.set(10, 2, 0.3);

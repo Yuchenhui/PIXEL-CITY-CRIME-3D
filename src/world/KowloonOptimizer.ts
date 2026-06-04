@@ -620,6 +620,102 @@ export class KowloonOptimizer {
   }
 
   /**
+   * 批量添加管道实例
+   */
+  addPipeInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const pipeGeo = new THREE.CylinderGeometry(0.1, 0.1, 1, 6);
+    const pipeMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
+    this.getOrCreateInstancedMesh('pipe', pipeGeo, pipeMat, 500);
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const count = randomInt(1, 2);
+      for (let i = 0; i < count; i++) {
+        const x = b.x + randomRange(-b.hw * 0.8, b.hw * 0.8);
+        const z = b.z + b.hd + 0.15;
+        const y = b.h / 2;
+
+        this.addInstance(
+          'pipe',
+          pipeGeo,
+          new THREE.Vector3(x, y, z),
+          undefined,
+          new THREE.Vector3(1, b.h, 1),
+          500
+        );
+      }
+    }
+  }
+
+  /**
+   * 批量添加衣服实例
+   */
+  addLaundryInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const clothGeo = new THREE.PlaneGeometry(0.5, 0.8);
+    const LAUNDRY_COLORS = [0xffffff, 0xdddddd, 0xcccccc, 0xeeeeee, 0xf5f5f5];
+
+    // 为每种颜色创建 InstancedMesh
+    for (const color of LAUNDRY_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
+      this.getOrCreateInstancedMesh(`cloth_${color}`, clothGeo, material, 500);
+    }
+
+    for (let i = 0; i < buildings.length; i++) {
+      const b1 = buildings[i];
+      const dx1 = b1.x - cx;
+      const dz1 = b1.z - cz;
+      if (Math.sqrt(dx1 * dx1 + dz1 * dz1) > r) continue;
+
+      for (let j = i + 1; j < buildings.length; j++) {
+        const b2 = buildings[j];
+        const dx = b2.x - b1.x;
+        const dz = b2.z - b1.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if (dist > 10 || dist < 2) continue;
+        if (Math.random() > 0.3) continue;
+
+        const h = randomRange(8, Math.min(b1.h, b2.h) * 0.7);
+        const clothCount = randomInt(2, 5);
+
+        for (let c = 0; c < clothCount; c++) {
+          const t = (c + 1) / (clothCount + 1);
+          const color = LAUNDRY_COLORS[randomInt(0, LAUNDRY_COLORS.length - 1)];
+          const x = b1.x + (b2.x - b1.x) * t;
+          const z = b1.z + (b2.z - b1.z) * t;
+          const y = h - randomRange(0.3, 0.6);
+
+          this.addInstance(
+            `cloth_${color}`,
+            clothGeo,
+            new THREE.Vector3(x, y, z),
+            new THREE.Euler(Math.random() * Math.PI, 0, randomRange(-0.2, 0.2)),
+            undefined,
+            500
+          );
+        }
+      }
+    }
+  }
+
+  /**
+
+  /**
    * 获取统计信息
    */
   getStats(): { totalInstances: number; meshCount: number } {

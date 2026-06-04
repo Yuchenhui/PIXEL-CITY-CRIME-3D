@@ -15,6 +15,7 @@ import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
 import { getRandomBuildingMaterial, createKowloonMaterial } from './TextureManager';
+import { createShopPrefab, getRandomShopType, type ShopType } from './KowloonShops';
 
 // ========== 城寨常量 ==========
 
@@ -71,7 +72,10 @@ export class KowloonDistrict {
     // 第五步：添加地面层的混乱结构（摊位、棚架）
     this.addGroundLevelChaos(group, cx, cz, r);
 
-    // 第六步：入口拱门
+    // 第六步：放置店铺预制件（城寨特色服务）
+    this.placeShops(group, buildings);
+
+    // 第七步：入口拱门
     this.createEntranceArch(group);
 
     return buildingGrid;
@@ -402,7 +406,54 @@ export class KowloonDistrict {
   }
 
   /**
-   * 第六步：入口拱门
+   * 第六步：放置店铺预制件（城寨特色服务）
+   * 在建筑之间随机放置各种店铺
+   */
+  private placeShops(group: THREE.Group, buildings: BuildingData[]): void {
+    // 店铺类型及其出现概率
+    const shopTypes: ShopType[] = [
+      'fish_ball', 'fish_ball', 'fish_ball', // 鱼丸工场最多
+      'dental', 'dental',                     // 牙科诊所很多
+      'barber',                               // 理发店
+      'grocery',                              // 杂货店
+      'tea_restaurant',                       // 茶餐厅
+      'noodle_shop',                          // 面条作坊
+      'bbq_shop',                             // 烧腊工场
+      'herbalist',                            // 中药房
+      'bone_setter',                          // 正骨跌打
+      'tailor',                               // 裁缝店
+      'mahjong',                              // 麻将馆
+      'electronics',                          // 电器维修
+      'shoe_repair',                          // 修鞋档
+    ];
+
+    // 在建筑之间放置店铺
+    const shopCount = 30; // 放置30个店铺
+    for (let i = 0; i < shopCount; i++) {
+      // 随机选择一个建筑
+      const building = randomPick(buildings);
+      
+      // 随机选择店铺类型
+      const shopType = randomPick(shopTypes);
+      
+      // 计算店铺位置（在建筑旁边）
+      const angle = Math.random() * Math.PI * 2;
+      const dist = building.hw + 1.5;
+      const x = building.x + Math.cos(angle) * dist;
+      const z = building.z + Math.sin(angle) * dist;
+      
+      // 创建店铺预制件
+      const shop = createShopPrefab(
+        shopType,
+        new THREE.Vector3(x, 0, z),
+        Math.random() * Math.PI * 2
+      );
+      group.add(shop);
+    }
+  }
+
+  /**
+   * 第七步：入口拱门
    */
   private createEntranceArch(group: THREE.Group): void {
     const entranceX = 0;

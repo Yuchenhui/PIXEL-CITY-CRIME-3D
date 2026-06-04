@@ -35,7 +35,9 @@ export class KowloonDetails {
   private lights: THREE.Light[] = [];
   private rats: THREE.Mesh[] = [];
   private ratVelocities: Array<{ vx: number; vz: number; timer: number }> = [];
+  private flickeringLights: Array<{ light: THREE.PointLight; baseIntensity: number; flickerTimer: number }> = [];
 
+  /**
   /**
    * 生成所有细节元素
    */
@@ -293,7 +295,7 @@ export class KowloonDetails {
   }
 
   /**
-   * 生成荧光灯（地面层照明，更多更密）
+   * 生成荧光灯（地面层照明，更多更密，还有闪烁效果）
    */
   private generateFluorescentLights(group: THREE.Group, buildings: BuildingData[]): void {
     const cx = KOWLOON_CENTRE_X;
@@ -308,23 +310,53 @@ export class KowloonDetails {
       const dz = b.z - cz;
       if (Math.sqrt(dx * dx + dz * dz) > r) continue;
 
-      // 每栋建筑 2-3 盏荧光灯（更多）
-      const count = randomInt(2, 3);
+      // 每栋建筑 3-5 盏荧光灯
+      const count = randomInt(3, 5);
       for (let i = 0; i < count; i++) {
         const mesh = new THREE.Mesh(lightGeo, lightMat);
-        const x = b.x + randomRange(-b.hw * 0.6, b.hw * 0.6);
+        const x = b.x + randomRange(-b.hw * 0.7, b.hw * 0.7);
         const z = b.z + b.hd + 0.05;
-        const y = randomRange(2.5, 4.5);
+        // 地面层荧光灯（y < 3）
+        const y = randomRange(1.5, 3.5);
 
         mesh.position.set(x, y, z);
-        mesh.scale.set(randomRange(1.0, 2.0), 0.1, 0.05);
+        mesh.scale.set(randomRange(1.2, 2.5), 0.1, 0.05);
 
         group.add(mesh);
         this.meshes.push(mesh);
 
         // 添加点光源
-        const light = new THREE.PointLight(FLUORESCENT_COLOR, 0.4, 8);
+        const intensity = 0.5 + Math.random() * 0.3;
+        const light = new THREE.PointLight(FLUORESCENT_COLOR, intensity, 10);
         light.position.set(x, y, z + 0.5);
+        group.add(light);
+        this.lights.push(light);
+
+        // 20% 的灯会闪烁
+        if (Math.random() < 0.2) {
+          this.flickeringLights.push({
+            light,
+            baseIntensity: intensity,
+            flickerTimer: randomInt(10, 30),
+          });
+        }
+      }
+
+      // 添加更多超低位置的灯（模拟墙角灯）
+      if (Math.random() < 0.4) {
+        const mesh = new THREE.Mesh(lightGeo, lightMat);
+        const x = b.x + randomRange(-b.hw * 0.5, b.hw * 0.5);
+        const z = b.z + randomRange(-b.hd * 0.5, b.hd * 0.5);
+        const y = 0.8; // 非常低的位置
+
+        mesh.position.set(x, y, z);
+        mesh.scale.set(randomRange(0.8, 1.5), 0.1, 0.05);
+
+        group.add(mesh);
+        this.meshes.push(mesh);
+
+        const light = new THREE.PointLight(FLUORESCENT_COLOR, 0.3, 5);
+        light.position.set(x, y + 0.2, z + 0.3);
         group.add(light);
         this.lights.push(light);
       }
@@ -477,9 +509,10 @@ export class KowloonDetails {
   }
 
   /**
-   * 更新老鼠动画（四处乱窜）
+   * 更新老鼠动画和闪烁灯光
    */
   update(): void {
+    // 更新老鼠
     for (let i = 0; i < this.rats.length; i++) {
       const rat = this.rats[i];
       const vel = this.ratVelocities[i];
@@ -507,6 +540,17 @@ export class KowloonDetails {
         // 回到中心附近
         rat.position.x = randomRange(-20, 20);
         rat.position.z = randomRange(-20, 20);
+      }
+    }
+
+    // 更新闪烁灯光
+    for (const fl of this.flickeringLights) {
+      fl.flickerTimer--;
+      if (fl.flickerTimer <= 0) {
+        // 闪烁效果
+        const flicker = Math.random() < 0.3 ? 0.1 : fl.baseIntensity;
+        fl.light.intensity = flicker;
+        fl.flickerTimer = randomInt(5, 15);
       }
     }
   }

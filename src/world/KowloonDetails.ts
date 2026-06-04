@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { randomRange, randomInt, randomPick } from '@utils/math';
 import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
+import { KowloonOptimizer } from './KowloonOptimizer';
 
 // ========== 细节常量 ==========
 
@@ -36,14 +37,23 @@ export class KowloonDetails {
   private rats: THREE.Mesh[] = [];
   private ratVelocities: Array<{ vx: number; vz: number; timer: number }> = [];
   private flickeringLights: Array<{ light: THREE.PointLight; baseIntensity: number; flickerTimer: number }> = [];
+  private optimizer: KowloonOptimizer = new KowloonOptimizer();
 
   /**
-  /**
    * 生成所有细节元素
+   * 使用 InstancedMesh 优化垃圾、杂物、塑料桶
    */
   generate(group: THREE.Group, buildings: BuildingData[]): void {
     this.generateWires(group, buildings);
-    this.generateGarbage(group, buildings);
+    // 使用 InstancedMesh 优化这些：
+    const cx = KOWLOON_CENTRE_X;
+    const cz = KOWLOON_CENTRE_Z;
+    const r = KOWLOON_RADIUS;
+    this.optimizer.addGarbageInstances(group, buildings, cx, cz, r);
+    this.optimizer.addDebrisInstances(group, buildings, cx, cz, r);
+    this.optimizer.addBucketInstances(group, buildings, cx, cz, r);
+    this.optimizer.addToScene(group);
+    // 以下仍使用独立 mesh：
     this.generateNeonSigns(group, buildings);
     this.generateFluorescentLights(group, buildings);
     this.generateRats(group, buildings);
@@ -163,79 +173,11 @@ export class KowloonDetails {
 
   /**
    * 生成垃圾袋、杂物、塑料桶等
-   * 九龙城寨地面层充满各种垃圾和废弃物
+   * 现在由 KowloonOptimizer 使用 InstancedMesh 处理
    */
-  private generateGarbage(group: THREE.Group, buildings: BuildingData[]): void {
-    const cx = KOWLOON_CENTRE_X;
-    const cz = KOWLOON_CENTRE_Z;
-    const r = KOWLOON_RADIUS;
-
-    const garbageGeo = new THREE.BoxGeometry(1, 1, 1);
-    const debrisGeo = new THREE.BoxGeometry(1, 1, 1);
-    const bucketGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.6, 8);
-
-    for (const b of buildings) {
-      const dx = b.x - cx;
-      const dz = b.z - cz;
-      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
-
-      // 每栋建筑附近放 3-6 个垃圾袋（更多）
-      const count = randomInt(3, 6);
-      for (let i = 0; i < count; i++) {
-        const color = randomPick(GARBAGE_COLORS);
-        const material = new THREE.MeshLambertMaterial({ color });
-
-        const mesh = new THREE.Mesh(garbageGeo, material);
-        // 分散在建筑周围
-        const x = b.x + randomRange(-b.hw * 1.2, b.hw * 1.2);
-        const z = b.z + randomRange(-b.hd * 1.2, b.hd * 1.2);
-        const y = randomRange(0.1, 0.6);
-        const scale = randomRange(0.3, 0.9);
-
-        mesh.position.set(x, y, z);
-        mesh.scale.set(scale, scale * 0.6, scale);
-        mesh.rotation.y = Math.random() * Math.PI * 2;
-        mesh.rotation.x = randomRange(-0.2, 0.2);
-        mesh.rotation.z = randomRange(-0.2, 0.2);
-        mesh.castShadow = true;
-
-        group.add(mesh);
-        this.meshes.push(mesh);
-      }
-
-      // 添加杂物（破箱子、砖块等）
-      const debrisCount = randomInt(2, 5);
-      for (let i = 0; i < debrisCount; i++) {
-        const color = randomPick(DEBRIS_COLORS);
-        const material = new THREE.MeshLambertMaterial({ color });
-        const mesh = new THREE.Mesh(debrisGeo, material);
-        const x = b.x + randomRange(-b.hw * 1.1, b.hw * 1.1);
-        const z = b.z + randomRange(-b.hd * 1.1, b.hd * 1.1);
-        const y = randomRange(0.1, 0.4);
-        const scale = randomRange(0.2, 0.5);
-
-        mesh.position.set(x, y, z);
-        mesh.scale.set(scale, scale * randomRange(0.5, 1.2), scale);
-        mesh.rotation.y = Math.random() * Math.PI * 2;
-        mesh.castShadow = true;
-
-        group.add(mesh);
-        this.meshes.push(mesh);
-      }
-
-      // 添加塑料桶（20% 概率）
-      if (Math.random() > 0.8) {
-        const bucketMat = new THREE.MeshLambertMaterial({ color: randomPick([0x444444, 0x555555, 0x666666]) });
-        const bucket = new THREE.Mesh(bucketGeo, bucketMat);
-        const x = b.x + randomRange(-b.hw * 0.8, b.hw * 0.8);
-        const z = b.z + randomRange(-b.hd * 0.8, b.hd * 0.8);
-        bucket.position.set(x, 0.3, z);
-        bucket.rotation.y = Math.random() * Math.PI * 2;
-        bucket.castShadow = true;
-        group.add(bucket);
-        this.meshes.push(bucket);
-      }
-    }
+  private generateGarbage(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addGarbageInstances(),
+    // addDebrisInstances(), addBucketInstances()
   }
 
   /**
@@ -572,5 +514,6 @@ export class KowloonDetails {
     this.lights = [];
     this.rats = [];
     this.ratVelocities = [];
+    this.optimizer.dispose();
   }
 }

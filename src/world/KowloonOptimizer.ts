@@ -294,6 +294,138 @@ export class KowloonOptimizer {
   }
 
   /**
+   * 批量添加垃圾袋实例
+   */
+  addGarbageInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    // 垃圾袋几何体（共享）
+    const garbageGeo = new THREE.BoxGeometry(1, 1, 1);
+    const GARBAGE_COLORS = [0x1a1a1a, 0x2a2a2a, 0x333333, 0x0f0f0f, 0x252525, 0x1f1f1f];
+
+    // 为每种颜色创建 InstancedMesh
+    for (const color of GARBAGE_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color });
+      this.getOrCreateInstancedMesh(`garbage_${color}`, garbageGeo, material, 2000);
+    }
+
+    // 添加垃圾袋实例
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const count = randomInt(3, 6);
+      for (let i = 0; i < count; i++) {
+        const color = GARBAGE_COLORS[randomInt(0, GARBAGE_COLORS.length - 1)];
+        const x = b.x + randomRange(-b.hw * 1.2, b.hw * 1.2);
+        const z = b.z + randomRange(-b.hd * 1.2, b.hd * 1.2);
+        const y = randomRange(0.1, 0.6);
+        const scale = randomRange(0.3, 0.9);
+
+        this.addInstance(
+          `garbage_${color}`,
+          garbageGeo,
+          new THREE.Vector3(x, y, z),
+          new THREE.Euler(randomRange(-0.2, 0.2), Math.random() * Math.PI * 2, randomRange(-0.2, 0.2)),
+          new THREE.Vector3(scale, scale * 0.6, scale),
+          2000
+        );
+      }
+    }
+  }
+
+  /**
+   * 批量添加杂物实例（破箱子、砖块）
+   */
+  addDebrisInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    // 杂物几何体（共享）
+    const debrisGeo = new THREE.BoxGeometry(1, 1, 1);
+    const DEBRIS_COLORS = [0x3a3a3a, 0x4a4a4a, 0x2a2a2a, 0x555555, 0x333333];
+
+    // 为每种颜色创建 InstancedMesh
+    for (const color of DEBRIS_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color });
+      this.getOrCreateInstancedMesh(`debris_${color}`, debrisGeo, material, 1500);
+    }
+
+    // 添加杂物实例
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const debrisCount = randomInt(2, 5);
+      for (let i = 0; i < debrisCount; i++) {
+        const color = DEBRIS_COLORS[randomInt(0, DEBRIS_COLORS.length - 1)];
+        const x = b.x + randomRange(-b.hw * 1.1, b.hw * 1.1);
+        const z = b.z + randomRange(-b.hd * 1.1, b.hd * 1.1);
+        const y = randomRange(0.1, 0.4);
+        const scale = randomRange(0.2, 0.5);
+
+        this.addInstance(
+          `debris_${color}`,
+          debrisGeo,
+          new THREE.Vector3(x, y, z),
+          new THREE.Euler(0, Math.random() * Math.PI * 2, 0),
+          new THREE.Vector3(scale, scale * randomRange(0.5, 1.2), scale),
+          1500
+        );
+      }
+    }
+  }
+
+  /**
+   * 批量添加塑料桶实例
+   */
+  addBucketInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    // 塑料桶几何体（共享）
+    const bucketGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.6, 8);
+    const bucketMat = new THREE.MeshLambertMaterial({ color: 0x2244aa });
+    this.getOrCreateInstancedMesh('bucket', bucketGeo, bucketMat, 200);
+
+    // 添加塑料桶实例
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      // 20% 概率有塑料桶
+      if (Math.random() > 0.8) {
+        const x = b.x + randomRange(-b.hw * 1.1, b.hw * 1.1);
+        const z = b.z + randomRange(-b.hd * 1.1, b.hd * 1.1);
+
+        this.addInstance(
+          'bucket',
+          bucketGeo,
+          new THREE.Vector3(x, 0.3, z),
+          new THREE.Euler(0, Math.random() * Math.PI * 2, 0),
+          new THREE.Vector3(1, 1, 1),
+          200
+        );
+      }
+    }
+  }
+
+  /**
+
+  /**
    * 将所有 InstancedMesh 添加到场景
    */
   addToScene(group: THREE.Group): void {

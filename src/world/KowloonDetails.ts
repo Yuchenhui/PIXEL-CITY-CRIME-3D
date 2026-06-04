@@ -41,7 +41,7 @@ export class KowloonDetails {
 
   /**
    * 生成所有细节元素
-   * 使用 InstancedMesh 优化垃圾、杂物、塑料桶
+   * 使用 InstancedMesh 优化垃圾、杂物、塑料桶、霓虹灯、荧光灯
    */
   generate(group: THREE.Group, buildings: BuildingData[]): void {
     this.generateWires(group, buildings);
@@ -52,10 +52,10 @@ export class KowloonDetails {
     this.optimizer.addGarbageInstances(group, buildings, cx, cz, r);
     this.optimizer.addDebrisInstances(group, buildings, cx, cz, r);
     this.optimizer.addBucketInstances(group, buildings, cx, cz, r);
+    this.optimizer.addNeonSignInstances(group, buildings, cx, cz, r);
+    this.optimizer.addFluorescentLightInstances(group, buildings, cx, cz, r);
     this.optimizer.addToScene(group);
     // 以下仍使用独立 mesh：
-    this.generateNeonSigns(group, buildings);
-    this.generateFluorescentLights(group, buildings);
     this.generateRats(group, buildings);
     this.generatePipes(group, buildings);
     this.generateLaundry(group, buildings);
@@ -172,137 +172,17 @@ export class KowloonDetails {
   }
 
   /**
-   * 生成垃圾袋、杂物、塑料桶等
-   * 现在由 KowloonOptimizer 使用 InstancedMesh 处理
+   * 生成霓虹灯招牌（已移至 KowloonOptimizer）
    */
-  private generateGarbage(_group: THREE.Group, _buildings: BuildingData[]): void {
-    // 已移至 KowloonOptimizer.addGarbageInstances(),
-    // addDebrisInstances(), addBucketInstances()
+  private generateNeonSigns(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addNeonSignInstances()
   }
 
   /**
-   * 生成霓虹灯招牌（更多更密）
+   * 生成荧光灯（已移至 KowloonOptimizer）
    */
-  private generateNeonSigns(group: THREE.Group, buildings: BuildingData[]): void {
-    const cx = KOWLOON_CENTRE_X;
-    const cz = KOWLOON_CENTRE_Z;
-    const r = KOWLOON_RADIUS;
-
-    const neonGeo = new THREE.BoxGeometry(1, 1, 1);
-
-    for (const b of buildings) {
-      const dx = b.x - cx;
-      const dz = b.z - cz;
-      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
-
-      // 50% 的建筑有霓虹灯（更多）
-      if (Math.random() > 0.5) continue;
-
-      // 每栋建筑可能有多个霓虹灯
-      const signCount = randomInt(1, 3);
-      for (let s = 0; s < signCount; s++) {
-        const color = randomPick(NEON_COLORS);
-        const material = new THREE.MeshBasicMaterial({ color });
-
-        const mesh = new THREE.Mesh(neonGeo, material);
-        // 随机位置（正面、侧面、角落）
-        const side = randomInt(0, 3);
-        let x = b.x;
-        let z = b.z;
-        if (side === 0) z = b.z + b.hd + 0.1;
-        else if (side === 1) z = b.z - b.hd - 0.1;
-        else if (side === 2) x = b.x + b.hw + 0.1;
-        else x = b.x - b.hw - 0.1;
-        const y = randomRange(2, b.h * 0.8);
-        const w = randomRange(0.8, 2.5);
-        const h = randomRange(0.2, 0.6);
-
-        mesh.position.set(x, y, z);
-        mesh.scale.set(w, h, 0.1);
-        if (side >= 2) {
-          mesh.rotation.y = Math.PI / 2;
-        }
-        mesh.castShadow = false;
-
-        group.add(mesh);
-        this.meshes.push(mesh);
-
-        // 添加点光源
-        const light = new THREE.PointLight(color, 0.6, 10);
-        light.position.set(x, y, side < 2 ? z + 1 : z);
-        group.add(light);
-        this.lights.push(light);
-      }
-    }
-  }
-
-  /**
-   * 生成荧光灯（地面层照明，更多更密，还有闪烁效果）
-   */
-  private generateFluorescentLights(group: THREE.Group, buildings: BuildingData[]): void {
-    const cx = KOWLOON_CENTRE_X;
-    const cz = KOWLOON_CENTRE_Z;
-    const r = KOWLOON_RADIUS;
-
-    const lightGeo = new THREE.BoxGeometry(1, 1, 1);
-    const lightMat = new THREE.MeshBasicMaterial({ color: FLUORESCENT_COLOR });
-
-    for (const b of buildings) {
-      const dx = b.x - cx;
-      const dz = b.z - cz;
-      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
-
-      // 每栋建筑 3-5 盏荧光灯
-      const count = randomInt(3, 5);
-      for (let i = 0; i < count; i++) {
-        const mesh = new THREE.Mesh(lightGeo, lightMat);
-        const x = b.x + randomRange(-b.hw * 0.7, b.hw * 0.7);
-        const z = b.z + b.hd + 0.05;
-        // 地面层荧光灯（y < 3）
-        const y = randomRange(1.5, 3.5);
-
-        mesh.position.set(x, y, z);
-        mesh.scale.set(randomRange(1.2, 2.5), 0.1, 0.05);
-
-        group.add(mesh);
-        this.meshes.push(mesh);
-
-        // 添加点光源
-        const intensity = 0.5 + Math.random() * 0.3;
-        const light = new THREE.PointLight(FLUORESCENT_COLOR, intensity, 10);
-        light.position.set(x, y, z + 0.5);
-        group.add(light);
-        this.lights.push(light);
-
-        // 20% 的灯会闪烁
-        if (Math.random() < 0.2) {
-          this.flickeringLights.push({
-            light,
-            baseIntensity: intensity,
-            flickerTimer: randomInt(10, 30),
-          });
-        }
-      }
-
-      // 添加更多超低位置的灯（模拟墙角灯）
-      if (Math.random() < 0.4) {
-        const mesh = new THREE.Mesh(lightGeo, lightMat);
-        const x = b.x + randomRange(-b.hw * 0.5, b.hw * 0.5);
-        const z = b.z + randomRange(-b.hd * 0.5, b.hd * 0.5);
-        const y = 0.8; // 非常低的位置
-
-        mesh.position.set(x, y, z);
-        mesh.scale.set(randomRange(0.8, 1.5), 0.1, 0.05);
-
-        group.add(mesh);
-        this.meshes.push(mesh);
-
-        const light = new THREE.PointLight(FLUORESCENT_COLOR, 0.3, 5);
-        light.position.set(x, y + 0.2, z + 0.3);
-        group.add(light);
-        this.lights.push(light);
-      }
-    }
+  private generateFluorescentLights(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addFluorescentLightInstances()
   }
 
   /**

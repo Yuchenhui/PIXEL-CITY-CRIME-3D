@@ -516,8 +516,97 @@ export class KowloonOptimizer {
   }
 
   /**
+   * 批量添加霓虹灯实例
+   */
+  addNeonSignInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const neonGeo = new THREE.BoxGeometry(1, 1, 1);
+    const NEON_COLORS = [0xff0066, 0x00ff66, 0x6600ff, 0xff6600, 0x0066ff, 0xff3399, 0xff0000, 0x00ff00, 0x0066ff];
+
+    // 为每种颜色创建 InstancedMesh
+    for (const color of NEON_COLORS) {
+      const material = new THREE.MeshBasicMaterial({ color });
+      this.getOrCreateInstancedMesh(`neon_${color}`, neonGeo, material, 500);
+    }
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const signCount = randomInt(1, 3);
+      for (let s = 0; s < signCount; s++) {
+        const color = NEON_COLORS[randomInt(0, NEON_COLORS.length - 1)];
+        const side = randomInt(0, 3);
+        let x = b.x;
+        let z = b.z;
+        if (side === 0) z = b.z + b.hd + 0.1;
+        else if (side === 1) z = b.z - b.hd - 0.1;
+        else if (side === 2) x = b.x + b.hw + 0.1;
+        else x = b.x - b.hw - 0.1;
+        const y = randomRange(2, b.h * 0.8);
+        const w = randomRange(0.8, 2.5);
+        const h = randomRange(0.2, 0.6);
+
+        const rotY = side >= 2 ? Math.PI / 2 : 0;
+        this.addInstance(
+          `neon_${color}`,
+          neonGeo,
+          new THREE.Vector3(x, y, z),
+          new THREE.Euler(0, rotY, 0),
+          new THREE.Vector3(w, h, 0.1),
+          500
+        );
+      }
+    }
+  }
 
   /**
+   * 批量添加荧光灯实例
+   */
+  addFluorescentLightInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const lightGeo = new THREE.BoxGeometry(1, 1, 1);
+    const lightMat = new THREE.MeshBasicMaterial({ color: 0xccddff });
+    this.getOrCreateInstancedMesh('fluorescent', lightGeo, lightMat, 1000);
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+
+      const lightCount = randomInt(3, 5);
+      for (let i = 0; i < lightCount; i++) {
+        const side = randomInt(0, 3);
+        let x = b.x;
+        let z = b.z;
+        if (side === 0) z = b.z + b.hd + 0.05;
+        else if (side === 1) z = b.z - b.hd - 0.05;
+        else if (side === 2) x = b.x + b.hw + 0.05;
+        else x = b.x - b.hw - 0.05;
+        const y = randomRange(2, 4);
+
+        this.addInstance(
+          'fluorescent',
+          lightGeo,
+          new THREE.Vector3(x, y, z),
+          undefined,
+          new THREE.Vector3(0.8, 0.1, 0.3),
+          1000
+        );
+      }
+    }
+  }
 
   /**
    * 将所有 InstancedMesh 添加到场景

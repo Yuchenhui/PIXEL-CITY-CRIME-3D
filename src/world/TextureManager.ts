@@ -50,12 +50,62 @@ export function createKowloonMaterial(
 
 /**
  * Get a random Kowloon building material.
- * Cycles through concrete, brick, and metal textures.
+ * Uses old/dirty textures for authentic look.
  */
 export function getRandomBuildingMaterial(): THREE.MeshLambertMaterial {
-  const textures = ['concrete', 'brick', 'metal'];
+  const textures = ['concrete_dirty', 'brick_old', 'metal', 'rusty_metal'];
   const textureName = textures[Math.floor(Math.random() * textures.length)];
   return createKowloonMaterial(textureName);
+}
+
+/**
+ * Get a random wall material for interior walls.
+ */
+export function getWallMaterial(): THREE.MeshLambertMaterial {
+  const textures = ['wall', 'concrete_dirty', 'brick_old'];
+  const textureName = textures[Math.floor(Math.random() * textures.length)];
+  return createKowloonMaterial(textureName);
+}
+
+/**
+ * Get a wood material (old/dirty).
+ */
+export function getWoodMaterial(): THREE.MeshLambertMaterial {
+  const textures = ['wood', 'wood_old'];
+  const textureName = textures[Math.floor(Math.random() * textures.length)];
+  return createKowloonMaterial(textureName);
+}
+
+/**
+ * Get a metal material.
+ */
+export function getMetalMaterial(): THREE.MeshLambertMaterial {
+  const textures = ['metal', 'rusty_metal'];
+  const textureName = textures[Math.floor(Math.random() * textures.length)];
+  return createKowloonMaterial(textureName);
+}
+
+/**
+ * Get a ground/floor material.
+ */
+export function getGroundMaterial(): THREE.MeshLambertMaterial {
+  const textures = ['ground', 'street', 'tile'];
+  const textureName = textures[Math.floor(Math.random() * textures.length)];
+  return createKowloonMaterial(textureName);
+}
+
+/**
+ * Get a fabric/tarp material.
+ */
+export function getFabricMaterial(): THREE.MeshLambertMaterial {
+  return createKowloonMaterial('fabric');
+}
+
+/**
+ * Get a cardboard material.
+ */
+export function getCardboardMaterial(): THREE.MeshLambertMaterial {
+  return createKowloonMaterial('cardboard');
 }
 
 /**

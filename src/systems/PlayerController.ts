@@ -9,6 +9,7 @@ import { AudioManager } from '@core/AudioManager';
 import { VehicleSystem } from './VehicleSystem';
 import { ShootingSystem } from './ShootingSystem';
 import { CombatLog } from '@ui/CombatLog';
+import { eventBus } from '@core/EventBus';
 
 /**
  * First-person player controller: movement, camera, shooting input, vehicle interaction.
@@ -110,8 +111,8 @@ export class PlayerController {
       s.onGround = true;
     }
 
-    // Head bob
-    if (mlen > 0 && s.onGround) {
+    // Head bob (only when on foot, not in vehicle)
+    if (mlen > 0 && s.onGround && s.inVehicle === null) {
       s.bobPhase += dt * (sprint ? CFG.PLAYER_EXTRA.HEAD_BOB_SPRINT_FREQ : CFG.PLAYER_EXTRA.HEAD_BOB_WALK_FREQ);
       this.camera.position.y += Math.sin(s.bobPhase) * CFG.PLAYER_EXTRA.HEAD_BOB_AMP;
     }
@@ -157,12 +158,17 @@ export class PlayerController {
       this.input.resetKey('KeyR');
     }
 
-    // Enter/exit vehicle
+    // Enter/exit vehicle / NPC interaction
     if (this.input.keys['KeyE']) {
       this.input.resetKey('KeyE');
       if (s.inVehicle !== null) {
         this.vehicleSystem.exit();
+        eventBus.emit('vehicle-exit', {});
       } else {
+        // Emit interact event for story mode NPC dialogue
+        // GameFlowController will handle this if an NPC is nearby
+        eventBus.emit('player:interact', {});
+        // Also try vehicle enter (will do nothing if no vehicle nearby)
         this.vehicleSystem.tryEnter(this.camera.position.x, this.camera.position.z);
       }
     }

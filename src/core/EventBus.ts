@@ -16,6 +16,8 @@ export type EventMap = {
   'vehicle-exit': {};
   'game-state-change': { state: string };
   'vehicle-runover': { type: string };
+  // Player interact key pressed (for NPC dialogue in story mode)
+  'player:interact': {};
   // Boss kill — picked up by quest system for story progression
   'boss-killed': { type: string; x: number; z: number };
   // Story mode trigger events

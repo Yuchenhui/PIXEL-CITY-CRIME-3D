@@ -180,6 +180,16 @@ export class GameFlowController {
       this.advanceDialogue();
     };
 
+    // Listen for player interact (E key) to trigger NPC dialogue
+    const handleInteract = () => {
+      if (!r.npcManager || !r.dialogueManager) return;
+      const npc = r.npcManager.checkInteraction(r.engine.camera.position.x, r.engine.camera.position.z);
+      if (npc) {
+        r.npcManager.tryDialogue(npc);
+      }
+    };
+    eventBus.on('player:interact', handleInteract);
+
     // Spawn story NPCs at their defined positions
     for (const spawn of NPC_SPAWN_POINTS) {
       const character = CHARACTERS.find(c => c.id === spawn.id);
@@ -199,6 +209,9 @@ export class GameFlowController {
     // Show story HUD
     r.hud.showStoryHUD();
     r.hud.setChapter(r.storyManager!.getCurrentChapter(), '九龙城寨');
+
+    // Auto-play chapter 1 intro dialogue
+    this.advanceDialogue();
 
     // Show HUD, hide menus
     r.menu.hideAll();

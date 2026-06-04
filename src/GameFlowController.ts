@@ -124,7 +124,11 @@ export class GameFlowController {
     // Re-init systems with new world data
     r.initSystems();
 
-    // Reset camera
+    // Reset camera - spawn at entrance, facing into Kowloon
+    r.engine.camera.position.set(0, CFG.PLAYER_H, 75);
+    r.engine.camera.rotation.set(0, Math.PI, 0); // face INTO the city (south)
+    r.engine.camera.fov = 75;
+    r.engine.camera.updateProjectionMatrix();
     r.engine.camera.position.set(0, CFG.PLAYER_H, 5);
     r.engine.camera.rotation.set(0, 0, 0);
     r.engine.camera.fov = 75;

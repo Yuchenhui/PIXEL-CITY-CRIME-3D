@@ -16,6 +16,7 @@ import type { BuildingData } from '@game/index';
 import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocations';
 import { getRandomBuildingMaterial, createKowloonMaterial } from './TextureManager';
 import { createShopPrefab, getRandomShopType, type ShopType } from './KowloonShops';
+import { KowloonAtmosphere } from './KowloonAtmosphere';
 
 // ========== 城寨常量 ==========
 
@@ -46,6 +47,7 @@ const OVERHANG_CHANCE = 0.5;
 export class KowloonDistrict {
   private meshes: THREE.Mesh[] = [];
   private lights: THREE.Light[] = [];
+  private atmosphere: KowloonAtmosphere = new KowloonAtmosphere();
 
   /**
    * 生成城寨建筑群
@@ -75,7 +77,10 @@ export class KowloonDistrict {
     // 第六步：放置店铺预制件（城寨特色服务）
     this.placeShops(group, buildings);
 
-    // 第七步：入口拱门
+    // 第七步：氛围效果（海报、滴水、杂物）
+    this.atmosphere.generate(group, buildings);
+
+    // 第八步：入口拱门
     this.createEntranceArch(group);
 
     return buildingGrid;
@@ -526,5 +531,6 @@ export class KowloonDistrict {
     }
     this.meshes = [];
     this.lights = [];
+    this.atmosphere.dispose();
   }
 }

@@ -20,11 +20,14 @@ export class KowloonAtmosphere {
 
   /**
    * 生成所有氛围效果
+   * @param skipInstancedItems - 跳过海报、涂鸦、杂物（改由 KowloonOptimizer 用 InstancedMesh 处理）
    */
-  generate(group: THREE.Group, buildings: BuildingData[]): void {
-    this.generateWallPosters(group, buildings);
+  generate(group: THREE.Group, buildings: BuildingData[], skipInstancedItems: boolean = false): void {
+    if (!skipInstancedItems) {
+      this.generateWallPosters(group, buildings);
+      this.generateStreetClutter(group, buildings);
+    }
     this.generateDrippingWater(group, buildings);
-    this.generateStreetClutter(group, buildings);
   }
 
   /**

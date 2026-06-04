@@ -17,6 +17,7 @@ import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from './StoryLocat
 import { getRandomBuildingMaterial, createKowloonMaterial } from './TextureManager';
 import { createShopPrefab, getRandomShopType, type ShopType } from './KowloonShops';
 import { KowloonAtmosphere } from './KowloonAtmosphere';
+import { KowloonOptimizer } from './KowloonOptimizer';
 
 // ========== 城寨常量 ==========
 
@@ -48,6 +49,7 @@ export class KowloonDistrict {
   private meshes: THREE.Mesh[] = [];
   private lights: THREE.Light[] = [];
   private atmosphere: KowloonAtmosphere = new KowloonAtmosphere();
+  private optimizer: KowloonOptimizer = new KowloonOptimizer();
 
   /**
    * 生成城寨建筑群
@@ -77,14 +79,22 @@ export class KowloonDistrict {
     // 第六步：放置店铺预制件（城寨特色服务）
     this.placeShops(group, buildings);
 
-    // 第七步：氛围效果（海报、滴水、杂物）
+    // 第七步：氛围效果（仅滴水、积水、污渍 - 海报涂鸦杂物由 KowloonOptimizer 用 InstancedMesh 处理）
+    this.atmosphere.generate(group, buildings, true);
     this.atmosphere.generate(group, buildings);
 
-    // 第八步：入口拱门
+    // 第八步：性能优化（InstancedMesh）
+    this.optimizer.addPosterInstances(group, buildings, cx, cz, r);
+    this.optimizer.addGraffitiInstances(group, buildings, cx, cz, r);
+    this.optimizer.addClutterInstances(group, cx, cz, r);
+    this.optimizer.addToScene(group);
+
+    // 第九步：入口拱门
     this.createEntranceArch(group);
 
     return buildingGrid;
   }
+
 
   /**
    * 第一步：生成核心建筑群
@@ -532,5 +542,6 @@ export class KowloonDistrict {
     this.meshes = [];
     this.lights = [];
     this.atmosphere.dispose();
+    this.optimizer.dispose();
   }
 }

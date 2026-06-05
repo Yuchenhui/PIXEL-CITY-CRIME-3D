@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { GameStateType, EnemyState } from '@game/index';
+import { GameStateType, EnemyState, AmbientType } from '@game/index';
 import { CFG } from '@config/constants';
+import { KOWLOON_CENTRE_X, KOWLOON_CENTRE_Z, KOWLOON_RADIUS } from '@world/StoryLocations';
 import type { GameRefs } from './GameFlowController';
 
 /**
@@ -14,6 +15,8 @@ export class GameLoop {
   private threatTimer = 0;
   private volumeIndicatorTimer = 0;
   private _camDir = new THREE.Vector3();
+  // Kowloon ambient sound state
+  private kowloonAmbientActive = false;
 
   constructor(
     private refs: GameRefs,
@@ -123,6 +126,32 @@ export class GameLoop {
         if (this.volumeIndicatorTimer <= 0) {
           this.volumeIndicator.style.opacity = '0';
         }
+      }
+
+      // Kowloon ambient sound: start/stop based on player position
+      const px = r.engine.camera.position.x;
+      const pz = r.engine.camera.position.z;
+      const dx = px - KOWLOON_CENTRE_X;
+      const dz = pz - KOWLOON_CENTRE_Z;
+      const inKowloon = Math.sqrt(dx * dx + dz * dz) < KOWLOON_RADIUS;
+
+      if (inKowloon && !this.kowloonAmbientActive) {
+        // Player entered Kowloon — start ambient sounds
+        this.kowloonAmbientActive = true;
+        r.audio.startAmbient(AmbientType.Rain, 0.5);
+        r.audio.startAmbient(AmbientType.Chatter, 0.4);
+        r.audio.startAmbient(AmbientType.Machinery, 0.25);
+        r.audio.startAmbient(AmbientType.Dripping, 0.3);
+        r.audio.startAmbient(AmbientType.NeonBuzz, 0.2);
+        r.audio.startAmbient(AmbientType.Sizzling, 0.3);
+        r.audio.startAmbient(AmbientType.Chopping, 0.25);
+        r.audio.startAmbient(AmbientType.VendorCalls, 0.15);
+        r.audio.startAmbient(AmbientType.Mahjong, 0.2);
+        r.audio.startAmbient(AmbientType.TvStatic, 0.15);
+      } else if (!inKowloon && this.kowloonAmbientActive) {
+        // Player left Kowloon — stop all ambient sounds
+        this.kowloonAmbientActive = false;
+        r.audio.stopAllAmbient();
       }
 
       // Check death

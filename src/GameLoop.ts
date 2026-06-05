@@ -136,7 +136,7 @@ export class GameLoop {
       const inKowloon = Math.sqrt(dx * dx + dz * dz) < KOWLOON_RADIUS;
 
       if (inKowloon && !this.kowloonAmbientActive) {
-        // Player entered Kowloon — start ambient sounds
+        // Player entered Kowloon — start ambient sounds and background music
         this.kowloonAmbientActive = true;
         r.audio.startAmbient(AmbientType.Rain, 0.5);
         r.audio.startAmbient(AmbientType.Chatter, 0.4);
@@ -148,10 +148,12 @@ export class GameLoop {
         r.audio.startAmbient(AmbientType.VendorCalls, 0.15);
         r.audio.startAmbient(AmbientType.Mahjong, 0.2);
         r.audio.startAmbient(AmbientType.TvStatic, 0.15);
+        r.audio.playMusic('/audio/kowloon_ambient.mp3', 0.5);
       } else if (!inKowloon && this.kowloonAmbientActive) {
-        // Player left Kowloon — stop all ambient sounds
+        // Player left Kowloon — stop all ambient sounds and music
         this.kowloonAmbientActive = false;
         r.audio.stopAllAmbient();
+        r.audio.stopMusic();
       }
 
       // Check death

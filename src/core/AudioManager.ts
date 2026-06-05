@@ -23,6 +23,9 @@ export class AudioManager {
   private ambientNodes: Map<AmbientType, { source: AudioNode; gain: GainNode }> = new Map();
   // Timeout IDs for random-event ambients (dripping, mahjong, etc.)
   private ambientTimeouts: Map<AmbientType, ReturnType<typeof setTimeout>> = new Map();
+  // Background music
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicGain: GainNode | null = null;
 
   /** Initialize AudioContext (must be called from user gesture) */
   init(): void {
@@ -116,6 +119,62 @@ export class AudioManager {
   stopAllAmbient(): void {
     for (const type of Object.values(AmbientType)) {
       this.stopAmbient(type);
+    }
+  }
+
+  // ===== Background Music =====
+
+  /**
+   * Play a looping background music track from a URL.
+   * @param url - URL to the audio file (e.g. '/audio/kowloon_ambient.mp3')
+   * @param vol - Volume (0–1), default 0.6
+   */
+  playMusic(url: string, vol = 0.6): void {
+    if (!this.ctx || this._muted) return;
+    this.stopMusic();
+    try {
+      fetch(url)
+        .then(response => response.arrayBuffer())
+        .then(arrayBuffer => this.ctx!.decodeAudioData(arrayBuffer))
+        .then(audioBuffer => {
+          if (!this.ctx || this._muted) return;
+          const source = this.ctx.createBufferSource();
+          source.buffer = audioBuffer;
+          source.loop = true;
+          this.musicGain = this.ctx.createGain();
+          this.musicGain.gain.value = vol;
+          source.connect(this.musicGain);
+          this.musicGain.connect(this.masterGain ?? this.ctx.destination);
+          source.start();
+          this.musicSource = source;
+        })
+        .catch(() => { /* ignore fetch errors */ });
+    } catch { /* ignore */ }
+  }
+
+  /** Stop background music with fade out. */
+  stopMusic(): void {
+    if (this.musicSource) {
+      try {
+        const fadeTime = 1.0;
+        if (this.musicGain && this.ctx) {
+          this.musicGain.gain.setValueAtTime(this.musicGain.gain.value, this.ctx.currentTime);
+          this.musicGain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + fadeTime);
+        }
+        setTimeout(() => {
+          try { this.musicSource?.disconnect(); this.musicGain?.disconnect(); } catch { /* ignore */ }
+          this.musicSource = null;
+          this.musicGain = null;
+        }, fadeTime * 1000 + 100);
+      } catch { /* ignore */ }
+      this.musicSource = null;
+    }
+  }
+
+  /** Set music volume (0–1). */
+  setMusicVolume(vol: number): void {
+    if (this.musicGain) {
+      this.musicGain.gain.value = Math.max(0, Math.min(1, vol));
     }
   }
 

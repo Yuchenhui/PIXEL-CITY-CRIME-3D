@@ -929,6 +929,119 @@ export class KowloonOptimizer {
   }
 
   /**
+   * 批量添加地面摊位实例
+   */
+  addStallInstances(
+    group: THREE.Group,
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const stallGeo = new THREE.BoxGeometry(1, 1, 1);
+    const STALL_COLORS = [0x8B4513, 0x654321, 0x5C4033, 0x704214];
+    for (const color of STALL_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color });
+      this.getOrCreateInstancedMesh(`stall_${color}`, stallGeo, material, 100);
+    }
+
+    for (let i = 0; i < 80; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * r * 0.9;
+      const x = cx + Math.cos(angle) * dist;
+      const z = cz + Math.sin(angle) * dist;
+      const color = STALL_COLORS[randomInt(0, STALL_COLORS.length - 1)];
+      const sw = randomRange(0.8, 2);
+      const sd = randomRange(0.8, 2);
+      const sh = randomRange(1.5, 2.5);
+
+      this.addInstance(
+        `stall_${color}`,
+        stallGeo,
+        new THREE.Vector3(x, sh / 2, z),
+        new THREE.Euler(0, Math.random() * Math.PI * 2, 0),
+        new THREE.Vector3(sw, sh, sd),
+        100
+      );
+    }
+  }
+
+  /**
+   * 批量添加遮阳布实例
+   */
+  addTarpInstances(
+    group: THREE.Group,
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const tarpGeo = new THREE.PlaneGeometry(1, 1);
+    const TARP_COLORS = [0x1a1a1a, 0x2a2a2a, 0x333333, 0x0f0f0f];
+    for (const color of TARP_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color, side: THREE.DoubleSide });
+      this.getOrCreateInstancedMesh(`tarp_${color}`, tarpGeo, material, 50);
+    }
+
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * r * 0.9;
+      const x = cx + Math.cos(angle) * dist;
+      const z = cz + Math.sin(angle) * dist;
+      const color = TARP_COLORS[randomInt(0, TARP_COLORS.length - 1)];
+      const sh = randomRange(1.5, 2.5);
+      const sw = randomRange(0.8, 2);
+      const sd = randomRange(0.8, 2);
+
+      this.addInstance(
+        `tarp_${color}`,
+        tarpGeo,
+        new THREE.Vector3(x, sh + 0.1, z),
+        new THREE.Euler(-Math.PI / 2 + randomRange(-0.2, 0.2), 0, Math.random() * Math.PI),
+        new THREE.Vector3(sw * 1.2, sd * 1.2, 1),
+        50
+      );
+    }
+  }
+
+  /**
+   * 批量添加棚架杆子实例
+   */
+  addPoleInstances(
+    group: THREE.Group,
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 4);
+    const poleMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
+    this.getOrCreateInstancedMesh('pole', poleGeo, poleMat, 300);
+
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = Math.random() * r * 0.8;
+      const x = cx + Math.cos(angle) * dist;
+      const z = cz + Math.sin(angle) * dist;
+      const poleCount = randomInt(2, 5);
+
+      for (let p = 0; p < poleCount; p++) {
+        this.addInstance(
+          'pole',
+          poleGeo,
+          new THREE.Vector3(
+            x + randomRange(-1, 1),
+            randomRange(1, 3),
+            z + randomRange(-1, 1)
+          ),
+          undefined,
+          new THREE.Vector3(1, randomRange(2, 4), 1),
+          300
+        );
+      }
+    }
+  }
+
+  /**
+
+  /**
    * 清理资源
    */
   dispose(): void {

@@ -72,17 +72,11 @@ export class KowloonDistrict {
 
     // 第四步：添加屋顶结构（天线、水箱、违章建筑）
     this.optimizer.addRooftopStructureInstances(group, buildings, cx, cz, r);
-    this.addConnectingPassages(group, buildings);
-
-    // 第三步：添加悬挑结构（向外延伸的房间）
-    this.addOverhangs(group, buildings);
-
-    // 第四步：添加屋顶结构（天线、水箱、违章建筑）
-    this.addRooftopStructures(group, buildings);
 
     // 第五步：添加地面层的混乱结构（摊位、棚架）
-    this.addGroundLevelChaos(group, cx, cz, r);
-
+    this.optimizer.addStallInstances(group, cx, cz, r);
+    this.optimizer.addTarpInstances(group, cx, cz, r);
+    this.optimizer.addPoleInstances(group, cx, cz, r);
     // 第六步：放置店铺预制件（城寨特色服务）
     this.placeShops(group, buildings);
 
@@ -190,79 +184,10 @@ export class KowloonDistrict {
   }
 
   /**
-   * 第五步：添加地面层的混乱结构（摊位、棚架、垃圾桶）
+   * 第五步：添加地面层的混乱结构（已移至 KowloonOptimizer）
    */
-  private addGroundLevelChaos(
-    group: THREE.Group,
-    cx: number,
-    cz: number,
-    r: number
-  ): void {
-    const stallGeo = new THREE.BoxGeometry(1, 1, 1);
-    const stallColors = [0x8B4513, 0x654321, 0x5C4033, 0x704214];
-    const tarpColors = [0x1a1a1a, 0x2a2a2a, 0x333333, 0x0f0f0f];
-
-    // 地面摊位
-    for (let i = 0; i < 80; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * r * 0.9;
-      const x = cx + Math.cos(angle) * dist;
-      const z = cz + Math.sin(angle) * dist;
-
-      const color = randomPick(stallColors);
-      const mat = new THREE.MeshLambertMaterial({ color });
-      const stall = new THREE.Mesh(stallGeo, mat);
-      const sw = randomRange(0.8, 2);
-      const sd = randomRange(0.8, 2);
-      const sh = randomRange(1.5, 2.5);
-      stall.position.set(x, sh / 2, z);
-      stall.scale.set(sw, sh, sd);
-      stall.rotation.y = Math.random() * Math.PI * 2;
-      stall.castShadow = true;
-      group.add(stall);
-      this.meshes.push(stall);
-
-      // 棚顶（篷布）
-      if (Math.random() < 0.5) {
-        const tarpGeo = new THREE.PlaneGeometry(1, 1);
-        const tarpMat = new THREE.MeshLambertMaterial({
-          color: randomPick(tarpColors),
-          side: THREE.DoubleSide,
-        });
-        const tarp = new THREE.Mesh(tarpGeo, tarpMat);
-        tarp.position.set(x, sh + 0.1, z);
-        tarp.rotation.x = -Math.PI / 2 + randomRange(-0.2, 0.2);
-        tarp.rotation.z = Math.random() * Math.PI;
-        tarp.scale.set(sw * 1.2, sd * 1.2, 1);
-        group.add(tarp);
-        this.meshes.push(tarp);
-      }
-    }
-
-    // 棚架结构
-    for (let i = 0; i < 40; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * r * 0.8;
-      const x = cx + Math.cos(angle) * dist;
-      const z = cz + Math.sin(angle) * dist;
-
-      // 竹竿/铁管
-      const poleGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 4);
-      const poleMat = new THREE.MeshLambertMaterial({ color: 0x666666 });
-      const poleCount = randomInt(2, 5);
-      for (let p = 0; p < poleCount; p++) {
-        const pole = new THREE.Mesh(poleGeo, poleMat);
-        pole.position.set(
-          x + randomRange(-1, 1),
-          randomRange(1, 3),
-          z + randomRange(-1, 1)
-        );
-        pole.scale.set(1, randomRange(2, 4), 1);
-        pole.rotation.z = randomRange(-0.1, 0.1);
-        group.add(pole);
-        this.meshes.push(pole);
-      }
-    }
+  private addGroundLevelChaos(_group: THREE.Group, _cx: number, _cz: number, _r: number): void {
+    // 已移至 KowloonOptimizer.addStallInstances(), addTarpInstances(), addPoleInstances()
   }
 
   /**

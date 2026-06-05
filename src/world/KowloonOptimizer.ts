@@ -717,7 +717,206 @@ export class KowloonOptimizer {
 
   /**
    * 获取统计信息
+  }
+
+  /**
+   * 批量添加通道实例
    */
+  addPassageInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const passageGeo = new THREE.BoxGeometry(1, 1, 1);
+    const passageMat = new THREE.MeshLambertMaterial({ color: 0x4a4540 });
+    const boardMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    this.getOrCreateInstancedMesh('passage', passageGeo, passageMat, 500);
+    this.getOrCreateInstancedMesh('board', passageGeo, boardMat, 200);
+
+    const BRIDGE_CHANCE = 0.3;
+    for (let i = 0; i < buildings.length; i++) {
+      const b1 = buildings[i];
+      const dx1 = b1.x - cx;
+      const dz1 = b1.z - cz;
+      if (Math.sqrt(dx1 * dx1 + dz1 * dz1) > r) continue;
+      if (Math.random() > BRIDGE_CHANCE) continue;
+
+      for (let j = i + 1; j < buildings.length; j++) {
+        const b2 = buildings[j];
+        const dx = b2.x - b1.x;
+        const dz = b2.z - b1.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist > 15 || dist < 5) continue;
+        if (Math.random() > 0.4) continue;
+
+        const minH = Math.min(b1.h, b2.h);
+        const connectH = randomRange(3, minH * 0.6);
+        const midX = (b1.x + b2.x) / 2;
+        const midZ = (b1.z + b2.z) / 2;
+        const rotY = Math.atan2(dz, dx);
+
+        this.addInstance(
+          'passage',
+          passageGeo,
+          new THREE.Vector3(midX, connectH, midZ),
+          new THREE.Euler(0, rotY, 0),
+          new THREE.Vector3(dist * 0.8, 0.3, randomRange(0.8, 1.5)),
+          500
+        );
+
+        if (Math.random() < 0.3) {
+          this.addInstance(
+            'board',
+            passageGeo,
+            new THREE.Vector3(midX, connectH + 0.5, midZ),
+            new THREE.Euler(0, rotY + randomRange(-0.2, 0.2), 0),
+            new THREE.Vector3(dist * 0.6, 0.1, randomRange(0.5, 0.8)),
+            200
+          );
+        }
+      }
+    }
+  }
+
+  /**
+   * 批量添加悬挑实例
+   */
+  addOverhangInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const overhangGeo = new THREE.BoxGeometry(1, 1, 1);
+    const KOWLOON_COLORS = [0x3a3530, 0x4a4540, 0x353030, 0x454035, 0x3a3a3a, 0x504a40, 0x3d3835, 0x484340];
+    const OVERHANG_CHANCE = 0.4;
+
+    // 为每种颜色创建 InstancedMesh
+    for (const color of KOWLOON_COLORS) {
+      const material = new THREE.MeshLambertMaterial({ color: new THREE.Color(color).multiplyScalar(0.9) });
+      this.getOrCreateInstancedMesh(`overhang_${color}`, overhangGeo, material, 500);
+    }
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+      if (Math.random() > OVERHANG_CHANCE) continue;
+
+      const overhangCount = randomInt(1, 4);
+      for (let i = 0; i < overhangCount; i++) {
+        const overhang = randomRange(0.5, 2.5);
+        const overH = randomRange(2, 5);
+        const overY = randomRange(b.h * 0.3, b.h * 0.9);
+        const side = randomInt(0, 3);
+        let ox = 0;
+        let oz = 0;
+        let ow = b.hw * 2;
+        let od = b.hd * 2;
+
+        if (side === 0) { ox = overhang; ow += overhang; }
+        else if (side === 1) { ox = -overhang; ow += overhang; }
+        else if (side === 2) { oz = overhang; od += overhang; }
+        else { oz = -overhang; od += overhang; }
+
+        const color = KOWLOON_COLORS[randomInt(0, KOWLOON_COLORS.length - 1)];
+        this.addInstance(
+          `overhang_${color}`,
+          overhangGeo,
+          new THREE.Vector3(b.x + ox, overY, b.z + oz),
+          undefined,
+          new THREE.Vector3(ow, overH, od),
+          500
+        );
+      }
+    }
+  }
+
+  /**
+   * 批量添加屋顶结构实例（天线、水箱、违章建筑）
+   */
+  addRooftopStructureInstances(
+    group: THREE.Group,
+    buildings: BuildingData[],
+    cx: number,
+    cz: number,
+    r: number
+  ): void {
+    const antennaGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 4);
+    const antennaMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
+    const tankGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
+    const tankMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+    const shackGeo = new THREE.BoxGeometry(1, 1, 1);
+    const shackMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+    this.getOrCreateInstancedMesh('antenna', antennaGeo, antennaMat, 1000);
+    this.getOrCreateInstancedMesh('tank', tankGeo, tankMat, 300);
+    this.getOrCreateInstancedMesh('shack', shackGeo, shackMat, 200);
+
+    for (const b of buildings) {
+      const dx = b.x - cx;
+      const dz = b.z - cz;
+      if (Math.sqrt(dx * dx + dz * dz) > r) continue;
+      const roofY = b.h;
+
+      // 天线
+      if (Math.random() < 0.7) {
+        const antennaCount = randomInt(1, 4);
+        for (let i = 0; i < antennaCount; i++) {
+          const ax = b.x + randomRange(-b.hw * 0.8, b.hw * 0.8);
+          const az = b.z + randomRange(-b.hd * 0.8, b.hd * 0.8);
+          const aH = randomRange(2, 6);
+          this.addInstance(
+            'antenna',
+            antennaGeo,
+            new THREE.Vector3(ax, roofY + aH / 2, az),
+            new THREE.Euler(0, 0, randomRange(-0.1, 0.1)),
+            new THREE.Vector3(1, aH, 1),
+            1000
+          );
+        }
+      }
+
+      // 水箱
+      if (Math.random() < 0.5) {
+        this.addInstance(
+          'tank',
+          tankGeo,
+          new THREE.Vector3(
+            b.x + randomRange(-b.hw * 0.5, b.hw * 0.5),
+            roofY + 0.5,
+            b.z + randomRange(-b.hd * 0.5, b.hd * 0.5)
+          ),
+          undefined,
+          new THREE.Vector3(randomRange(0.8, 1.5), randomRange(0.8, 1.5), randomRange(0.8, 1.5)),
+          300
+        );
+      }
+
+      // 违章建筑
+      if (Math.random() < 0.3) {
+        const sw = randomRange(1, 3);
+        const sd = randomRange(1, 3);
+        const sh = randomRange(1.5, 3);
+        this.addInstance(
+          'shack',
+          shackGeo,
+          new THREE.Vector3(
+            b.x + randomRange(-b.hw * 0.5, b.hw * 0.5),
+            roofY + sh / 2,
+            b.z + randomRange(-b.hd * 0.5, b.hd * 0.5)
+          ),
+          undefined,
+          new THREE.Vector3(sw, sh, sd),
+          200
+        );
+      }
+    }
+  }
+
+  /**
   getStats(): { totalInstances: number; meshCount: number } {
     let totalInstances = 0;
     for (const count of this.instanceCounts.values()) {

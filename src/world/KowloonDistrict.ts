@@ -65,6 +65,13 @@ export class KowloonDistrict {
     buildingGrid.push(...buildings);
 
     // 第二步：在建筑之间添加连接通道（木板、铁皮）
+    this.optimizer.addPassageInstances(group, buildings, cx, cz, r);
+
+    // 第三步：添加悬挑结构（向外延伸的房间）
+    this.optimizer.addOverhangInstances(group, buildings, cx, cz, r);
+
+    // 第四步：添加屋顶结构（天线、水箱、违章建筑）
+    this.optimizer.addRooftopStructureInstances(group, buildings, cx, cz, r);
     this.addConnectingPassages(group, buildings);
 
     // 第三步：添加悬挑结构（向外延伸的房间）
@@ -162,182 +169,24 @@ export class KowloonDistrict {
   }
 
   /**
-   * 第二步：添加连接通道（城寨特色：窗户搭板变走廊）
-   * 不同高度、不同角度的连接
+   * 第二步：添加连接通道（已移至 KowloonOptimizer）
    */
-  private addConnectingPassages(
-    group: THREE.Group,
-    buildings: BuildingData[]
-  ): void {
-    const passageGeo = new THREE.BoxGeometry(1, 1, 1);
-    const passageMat = new THREE.MeshLambertMaterial({ color: 0x4a4540 });
-    const boardMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // 木板色
-
-    for (let i = 0; i < buildings.length; i++) {
-      const b1 = buildings[i];
-      if (Math.random() > BRIDGE_CHANCE) continue;
-
-      // 找附近的建筑
-      for (let j = i + 1; j < buildings.length; j++) {
-        const b2 = buildings[j];
-        const dx = b2.x - b1.x;
-        const dz = b2.z - b1.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-
-        // 只连接 8-15 单位内的建筑（太近不需要，太远不现实）
-        if (dist > 15 || dist < 5) continue;
-        if (Math.random() > 0.4) continue;
-
-        // 连接高度（随机在两栋建筑的中间区域）
-        const minH = Math.min(b1.h, b2.h);
-        const connectH = randomRange(3, minH * 0.6);
-
-        // 连接通道
-        const passage = new THREE.Mesh(passageGeo, passageMat);
-        const midX = (b1.x + b2.x) / 2;
-        const midZ = (b1.z + b2.z) / 2;
-        passage.position.set(midX, connectH, midZ);
-        passage.scale.set(dist * 0.8, 0.3, randomRange(0.8, 1.5));
-        // 朝向对方建筑
-        passage.rotation.y = Math.atan2(dz, dx);
-        passage.castShadow = true;
-        group.add(passage);
-        this.meshes.push(passage);
-
-        // 可能添加木板（更窄的连接）
-        if (Math.random() < 0.3) {
-          const board = new THREE.Mesh(passageGeo, boardMat);
-          board.position.set(midX, connectH + 0.5, midZ);
-          board.scale.set(dist * 0.6, 0.1, randomRange(0.5, 0.8));
-          board.rotation.y = Math.atan2(dz, dx) + randomRange(-0.2, 0.2);
-          board.castShadow = true;
-          group.add(board);
-          this.meshes.push(board);
-        }
-
-        // 可能添加第二层连接（更高处）
-        if (Math.random() < 0.2) {
-          const connectH2 = randomRange(connectH + 3, minH * 0.8);
-          const passage2 = new THREE.Mesh(passageGeo, passageMat);
-          passage2.position.set(midX + randomRange(-1, 1), connectH2, midZ + randomRange(-1, 1));
-          passage2.scale.set(dist * 0.7, 0.3, randomRange(0.6, 1.2));
-          passage2.rotation.y = Math.atan2(dz, dx) + randomRange(-0.3, 0.3);
-          passage2.castShadow = true;
-          group.add(passage2);
-          this.meshes.push(passage2);
-        }
-      }
-    }
+  private addConnectingPassages(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addPassageInstances()
   }
 
   /**
-   * 第三步：添加悬挑结构（向外延伸的房间）
-   * 城寨特色：上层比下层宽，向外悬挑
+   * 第三步：添加悬挑结构（已移至 KowloonOptimizer）
    */
-  private addOverhangs(
-    group: THREE.Group,
-    buildings: BuildingData[]
-  ): void {
-    const overhangGeo = new THREE.BoxGeometry(1, 1, 1);
-
-    for (const b of buildings) {
-      if (Math.random() > OVERHANG_CHANCE) continue;
-
-      const overhangCount = randomInt(1, 4);
-      for (let i = 0; i < overhangCount; i++) {
-        const overhang = randomRange(0.5, 2.5);
-        const overH = randomRange(2, 5);
-        const overY = randomRange(b.h * 0.3, b.h * 0.9);
-
-        // 随机方向悬挑
-        const side = randomInt(0, 3);
-        let ox = 0;
-        let oz = 0;
-        let ow = b.hw * 2;
-        let od = b.hd * 2;
-
-        if (side === 0) { ox = overhang; ow += overhang; }
-        else if (side === 1) { ox = -overhang; ow += overhang; }
-        else if (side === 2) { oz = overhang; od += overhang; }
-        else { oz = -overhang; od += overhang; }
-
-        const color = new THREE.Color(randomPick(KOWLOON_COLORS)).multiplyScalar(0.9);
-        const mat = new THREE.MeshLambertMaterial({ color });
-        const mesh = new THREE.Mesh(overhangGeo, mat);
-        mesh.position.set(b.x + ox, overY, b.z + oz);
-        mesh.scale.set(ow, overH, od);
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        group.add(mesh);
-        this.meshes.push(mesh);
-      }
-    }
+  private addOverhangs(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addOverhangInstances()
   }
 
   /**
-   * 第四步：添加屋顶结构（天线、水箱、违章建筑）
+   * 第四步：添加屋顶结构（已移至 KowloonOptimizer）
    */
-  private addRooftopStructures(
-    group: THREE.Group,
-    buildings: BuildingData[]
-  ): void {
-    const antennaGeo = new THREE.CylinderGeometry(0.05, 0.05, 1, 4);
-    const antennaMat = new THREE.MeshLambertMaterial({ color: 0x888888 });
-    const tankGeo = new THREE.CylinderGeometry(0.5, 0.5, 1, 8);
-    const tankMat = new THREE.MeshLambertMaterial({ color: 0x444444 });
-    const shackGeo = new THREE.BoxGeometry(1, 1, 1);
-    const shackMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
-
-    for (const b of buildings) {
-      const roofY = b.h;
-
-      // 天线（70% 的建筑有）
-      if (Math.random() < 0.7) {
-        const antennaCount = randomInt(1, 4);
-        for (let i = 0; i < antennaCount; i++) {
-          const antenna = new THREE.Mesh(antennaGeo, antennaMat);
-          const ax = b.x + randomRange(-b.hw * 0.8, b.hw * 0.8);
-          const az = b.z + randomRange(-b.hd * 0.8, b.hd * 0.8);
-          const aH = randomRange(2, 6);
-          antenna.position.set(ax, roofY + aH / 2, az);
-          antenna.scale.set(1, aH, 1);
-          antenna.rotation.z = randomRange(-0.1, 0.1);
-          group.add(antenna);
-          this.meshes.push(antenna);
-        }
-      }
-
-      // 水箱（50% 的建筑有）
-      if (Math.random() < 0.5) {
-        const tank = new THREE.Mesh(tankGeo, tankMat);
-        tank.position.set(
-          b.x + randomRange(-b.hw * 0.5, b.hw * 0.5),
-          roofY + 0.5,
-          b.z + randomRange(-b.hd * 0.5, b.hd * 0.5)
-        );
-        tank.scale.set(randomRange(0.8, 1.5), randomRange(0.8, 1.5), randomRange(0.8, 1.5));
-        tank.castShadow = true;
-        group.add(tank);
-        this.meshes.push(tank);
-      }
-
-      // 违章建筑（30% 的建筑有）
-      if (Math.random() < 0.3) {
-        const shack = new THREE.Mesh(shackGeo, shackMat);
-        const sw = randomRange(1, 3);
-        const sd = randomRange(1, 3);
-        const sh = randomRange(1.5, 3);
-        shack.position.set(
-          b.x + randomRange(-b.hw * 0.5, b.hw * 0.5),
-          roofY + sh / 2,
-          b.z + randomRange(-b.hd * 0.5, b.hd * 0.5)
-        );
-        shack.scale.set(sw, sh, sd);
-        shack.castShadow = true;
-        group.add(shack);
-        this.meshes.push(shack);
-      }
-    }
+  private addRooftopStructures(_group: THREE.Group, _buildings: BuildingData[]): void {
+    // 已移至 KowloonOptimizer.addRooftopStructureInstances()
   }
 
   /**

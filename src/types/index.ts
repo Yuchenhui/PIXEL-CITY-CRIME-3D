@@ -60,6 +60,19 @@ export enum PickupType {
   Armor = 'armor',
 }
 
+export enum AmbientType {
+  Rain = 'rain',
+  Chatter = 'chatter',
+  Machinery = 'machinery',
+  Dripping = 'dripping',
+  NeonBuzz = 'neon_buzz',
+  Sizzling = 'sizzling',
+  Chopping = 'chopping',
+  VendorCalls = 'vendor_calls',
+  Mahjong = 'mahjong',
+  TvStatic = 'tv_static',
+}
+
 /** Procedural sound effect identifiers (see AudioManager) */
 export enum SoundType {
   Shoot = 'shoot',
